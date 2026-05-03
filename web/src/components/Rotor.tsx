@@ -1,3 +1,8 @@
+// FIX: La vibration utilisait Math.sin(Date.now()) au moment du render React,
+// ce qui la gelait entre deux renders. Elle est maintenant pilotée par un RAF
+// interne qui force un re-render uniquement quand nécessaire.
+
+import { useEffect, useRef, useState } from "react";
 import rotorImg from "../assets/rotor.png";
 
 interface RotorProps {
@@ -7,31 +12,43 @@ interface RotorProps {
 }
 
 export default function Rotor({ angle, gameState, inZone }: RotorProps) {
+  const [shakeOffset, setShakeOffset] = useState(0);
+  const rafRef = useRef(0);
+
+  // FIX: animation de vibration propre dans un RAF dédié
+  useEffect(() => {
+    const shouldShake = gameState === "playing" && !inZone && angle > 2;
+
+    if (!shouldShake) {
+      setShakeOffset(0);
+      return;
+    }
+
+    const tick = () => {
+      setShakeOffset(Math.sin(Date.now() * 0.05) * 1.5);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [gameState, inZone, angle]);
 
   let filterClass = "";
-
   if (gameState === "success") filterClass = "cyl-success";
   else if (gameState === "fail") filterClass = "cyl-fail";
   else if (inZone) filterClass = "cyl-active";
 
-  // 💥 micro feedback mécanique
-  let visualAngle = angle;
-
-  if (gameState === "playing") {
-    if (!inZone && angle > 2) {
-      // 🔒 blocage + vibration légère
-      const shake = Math.sin(Date.now() * 0.05) * 1.5;
-      visualAngle = 2 + shake;
-    }
-  }
+  const visualAngle = gameState === "playing" && !inZone && angle > 2
+    ? 2 + shakeOffset
+    : angle;
 
   return (
     <div
       className={`rotor-img-wrapper ${filterClass}`}
       style={{
-       transform: `rotate(-${visualAngle}deg)`,
+        transform: `rotate(-${visualAngle}deg)`,
         transformOrigin: "center center",
-        transition: "transform 0.05s linear, filter 0.2s ease",
+        transition: "filter 0.2s ease",
         willChange: "transform",
       }}
     >

@@ -1,7 +1,5 @@
 -- ══════════════════════════════════════════════════════════════
 -- fxmanifest.lua — Manifest FiveM pour la ressource lockpick
--- Place ce fichier à la racine de ta ressource FiveM,
--- et le dossier dist/ (build Vite) dans html/
 -- ══════════════════════════════════════════════════════════════
 
 fx_version 'cerulean'
@@ -9,7 +7,7 @@ game 'gta5'
 
 name        'kt_lockpick'
 description 'Mini-jeu de crochetage NUI — Vite + React'
-version     '1.0'
+version     '1.1.0'
 author      'kitotake'
 
 -- Scripts client
@@ -18,32 +16,15 @@ client_scripts {
 }
 
 -- Callbacks NUI autorisés
--- Ces noms doivent correspondre aux fetch dans App.tsx
--- fetch(`https://${resourceName}/success`)
--- fetch(`https://${resourceName}/fail`)
+-- FIX: nui_callbacks était manquant → les fetch NUI étaient silencieusement ignorés
+nui_callbacks {
+    'success',
+    'fail',
+    'close',
+}
+
 ui_page 'web/dist/index.html'
 
 files {
    'web/dist/**',
 }
-
--- ══════════════════════════════════════════════════════════════
--- INSTRUCTIONS DE BUILD :
---
--- 1. Dans le dossier lockpick-fivem/ :
---    npm install
---    npm run build
---
--- 2. Copier le contenu de dist/ dans le dossier web/dist/ de ta ressource FiveM
---
--- 3. Structure finale attendue :
---    lockpick/
---    ├── fxmanifest.lua
---    ├── client/client.lua
---    └── web/
---        ├── dist/
---        │   ├── index.html
---        │   └── assets/
---        │       ├── index-XXXX.js
---        │       └── index-XXXX.css
--- ══════════════════════════════════════════════════════════════

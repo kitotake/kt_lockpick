@@ -1,3 +1,9 @@
+// FIXES:
+// 1. cylinderAngle retiré des dépendances du game-loop RAF → plus de re-subscription constante
+// 2. picksLeft, gameOver lus via useRef pour éviter les stale closures dans le RAF
+// 3. successTimerRef et cylinderAngleRef utilisés pour les mutations in-loop
+// 4. Drop zones tournevis : condition simplifiée (plus de doublon)
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import ToolBox from "./ToolBox";
 import LockScene from "./LockScene";
@@ -8,8 +14,13 @@ export type WrenchPos = "top" | "bottom" | null;
 export type ToolPlaced = { wrench: WrenchPos; pick: boolean };
 
 const MAX_PICKS = 3;
-const SUCCESS_HOLD = 1400;
-const ZONE_SIZES = { easy: 24, medium: 16, hard: 10 };
+const SUCCESS_HOLD = 1400; // ms
+
+const ZONE_SIZES: Record<"easy" | "medium" | "hard", number> = {
+  easy: 24,
+  medium: 16,
+  hard: 10,
+};
 
 interface Props {
   difficulty: "easy" | "medium" | "hard";
@@ -33,13 +44,22 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
   const [shaking, setShaking] = useState(false);
   const [hint, setHint] = useState<"none" | "warm" | "hot">("none");
 
+  // FIX: refs pour les valeurs mutées dans la game loop (évite stale closures)
   const pickAngleRef = useRef(0);
   const isTensionRef = useRef(false);
   const successTimerRef = useRef(0);
+  const cylinderAngleRef = useRef(0);   // FIX: ref miroir pour cylinderAngle
   const brokenRef = useRef(false);
+  const gameOverRef = useRef(false);     // FIX: ref miroir pour gameOver
+  const picksLeftRef = useRef(MAX_PICKS); // FIX: ref miroir pour picksLeft
   const rafRef = useRef(0);
 
   const zone = ZONE_SIZES[difficulty];
+
+  // Synchroniser les refs miroirs avec l'état React
+  useEffect(() => { gameOverRef.current = gameOver; }, [gameOver]);
+  useEffect(() => { picksLeftRef.current = picksLeft; }, [picksLeft]);
+  useEffect(() => { cylinderAngleRef.current = cylinderAngle; }, [cylinderAngle]);
 
   // ── Souris → angle du pick ───────────────────────────────────
   useEffect(() => {
@@ -51,10 +71,7 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
       setPickAngle(angle);
 
       const diff = Math.abs(angle - targetAngle);
-      const newInZone = diff <= zone;
-      setInZone(newInZone);
-
-      // hint proximity
+      setInZone(diff <= zone);
       if (diff <= zone * 2.5) setHint("hot");
       else if (diff <= zone * 5) setHint("warm");
       else setHint("none");
@@ -66,20 +83,10 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
   // ── Clavier ───────────────────────────────────────────────────
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
-      // Numpad 8 → placer le tournevis
-      if (e.code === "Numpad8" && selectedTool === "wrench" && !placed.wrench) {
-        const pos: WrenchPos = e.shiftKey ? "bottom" : "top";
-        setPlaced(p => ({ ...p, wrench: pos }));
-        setSelectedTool(null);
-        playSound("click_metal");
+      if (e.code === "Escape") {
+        onClose();
+        return;
       }
-      // Numpad 5 → placer le pick
-      if (e.code === "Numpad5" && selectedTool === "pick" && placed.wrench && !placed.pick) {
-        setPlaced(p => ({ ...p, pick: true }));
-        setSelectedTool(null);
-        playSound("click_metal");
-      }
-      // E → tension
       if (e.code === "KeyE" && placed.pick && placed.wrench && !brokenRef.current) {
         if (!isTensionRef.current) {
           isTensionRef.current = true;
@@ -87,56 +94,69 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
           playSound("tension_loop");
         }
       }
-      // Numpad 8 (second usage) → pick wrench position
-      if (e.code === "Numpad8" && placed.wrench && !placed.pick && selectedTool === "wrench") {
-        setPlaced(p => ({ ...p, wrench: "top" }));
-        setSelectedTool(null);
-        playSound("click_metal");
-      }
-      // Escape
-      if (e.code === "Escape") onClose();
     };
     const onUp = (e: KeyboardEvent) => {
       if (e.code === "KeyE") {
         isTensionRef.current = false;
         setIsTensioning(false);
-        // reset progress si lâché
+        // Relâché hors succès → reset la progression
         if (!brokenRef.current && successTimerRef.current < SUCCESS_HOLD) {
           successTimerRef.current = 0;
-          setSuccessProgress(0);
+          cylinderAngleRef.current = 0;
           setCylinderAngle(0);
+          setSuccessProgress(0);
         }
       }
     };
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
-    return () => { window.removeEventListener("keydown", onDown); window.removeEventListener("keyup", onUp); };
-  }, [selectedTool, placed, onClose]);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+    };
+  }, [placed, onClose]);
 
   // ── Game loop ─────────────────────────────────────────────────
+  // FIX: cylinderAngle RETIRÉ des dépendances → le RAF ne se re-subscribait
+  // à chaque frame, provoquant une boucle de création/destruction infinie.
+  // On lit/écrit via cylinderAngleRef à l'intérieur du RAF.
   useEffect(() => {
-    if (!placed.pick || !placed.wrench || gameOver) return;
+    if (!placed.pick || !placed.wrench || gameOverRef.current) return;
+
+    const FRAME_TIME = 16; // ~60fps
 
     const tick = () => {
-      if (brokenRef.current) { rafRef.current = requestAnimationFrame(tick); return; }
+      if (brokenRef.current || gameOverRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
 
       if (isTensionRef.current) {
         const diff = Math.abs(pickAngleRef.current - targetAngle);
         const currentInZone = diff <= zone;
 
         if (currentInZone) {
-          successTimerRef.current = Math.min(successTimerRef.current + 16, SUCCESS_HOLD);
+          successTimerRef.current = Math.min(
+            successTimerRef.current + FRAME_TIME,
+            SUCCESS_HOLD
+          );
+          const newAngle = Math.min(
+            cylinderAngleRef.current + 90 * (FRAME_TIME / SUCCESS_HOLD),
+            90
+          );
+          cylinderAngleRef.current = newAngle;
+          setCylinderAngle(newAngle);
           setSuccessProgress((successTimerRef.current / SUCCESS_HOLD) * 100);
-          setCylinderAngle(prev => Math.min(prev + 90 * (16 / SUCCESS_HOLD), 90));
 
           if (successTimerRef.current >= SUCCESS_HOLD) {
-            playSound("success");
+            gameOverRef.current = true;
             setGameOver(true);
+            playSound("success");
             onSuccess();
             return;
           }
         } else {
-          // Mauvaise position → casse
+          // Mauvaise position → casse le pick
           brokenRef.current = true;
           setPickBroken(true);
           setIsTensioning(false);
@@ -145,17 +165,22 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
           playSound("crack");
 
           setTimeout(() => {
-            setShaking(false);
-            const newLeft = picksLeft - 1;
+            const newLeft = picksLeftRef.current - 1;
+            picksLeftRef.current = newLeft;
             setPicksLeft(newLeft);
+            setShaking(false);
             brokenRef.current = false;
             setPickBroken(false);
-            setPlaced(p => ({ ...p, pick: false }));
-            setSuccessProgress(0);
-            setCylinderAngle(0);
+            setPlaced((p) => ({ ...p, pick: false }));
             successTimerRef.current = 0;
+            cylinderAngleRef.current = 0;
+            setCylinderAngle(0);
+            setSuccessProgress(0);
+            setInZone(false);
+            setHint("none");
 
             if (newLeft <= 0) {
+              gameOverRef.current = true;
               setGameOver(true);
               playSound("fail");
               onFail();
@@ -163,11 +188,13 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
           }, 900);
         }
       } else {
-        // Relâché → recule doucement
-        if (cylinderAngle > 0) {
-          setCylinderAngle(prev => Math.max(0, prev - 1.5));
+        // Relâché → le cylindre recule doucement
+        if (cylinderAngleRef.current > 0) {
+          const newAngle = Math.max(0, cylinderAngleRef.current - 1.5);
+          cylinderAngleRef.current = newAngle;
+          setCylinderAngle(newAngle);
           successTimerRef.current = Math.max(0, successTimerRef.current - 25);
-          setSuccessProgress(prev => Math.max(0, prev - 2));
+          setSuccessProgress((prev) => Math.max(0, prev - 2));
         }
       }
 
@@ -176,44 +203,50 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [placed, gameOver, targetAngle, zone, picksLeft, onSuccess, onFail, cylinderAngle]);
+    // FIX: cylinderAngle intentionnellement absent des dépendances (lu via ref)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placed.pick, placed.wrench, targetAngle, zone, onSuccess, onFail]);
 
-  const handleSelectTool = useCallback((tool: Tool) => {
-    if (gameOver) return;
-    if (tool === "wrench" && placed.wrench) return;
-    if (tool === "pick" && placed.pick) return;
-    setSelectedTool(prev => prev === tool ? null : tool);
-    playSound("select");
-  }, [placed, gameOver]);
+  const handleSelectTool = useCallback(
+    (tool: Tool) => {
+      if (gameOver) return;
+      if (tool === "wrench" && placed.wrench) return;
+      if (tool === "pick" && placed.pick) return;
+      setSelectedTool((prev) => (prev === tool ? null : tool));
+      playSound("select");
+    },
+    [placed, gameOver]
+  );
 
-  const handlePlaceWrench = useCallback((pos: WrenchPos) => {
-    if (!selectedTool || selectedTool !== "wrench") return;
-    setPlaced(p => ({ ...p, wrench: pos }));
-    setSelectedTool(null);
-    playSound("click_metal");
-  }, [selectedTool]);
+  const handlePlaceWrench = useCallback(
+    (pos: WrenchPos) => {
+      if (selectedTool !== "wrench") return;
+      setPlaced((p) => ({ ...p, wrench: pos }));
+      setSelectedTool(null);
+      playSound("click_metal");
+    },
+    [selectedTool]
+  );
 
   const handlePlacePick = useCallback(() => {
-    if (!selectedTool || selectedTool !== "pick") return;
+    if (selectedTool !== "pick") return;
     if (!placed.wrench) {
       playSound("error");
       return;
     }
-    setPlaced(p => ({ ...p, pick: true }));
+    setPlaced((p) => ({ ...p, pick: true }));
     setSelectedTool(null);
     playSound("click_metal");
   }, [selectedTool, placed.wrench]);
 
   return (
     <div className={`phase-container ${shaking ? "shake" : ""}`}>
-      {/* Titre phase */}
       <div className="phase-header">
         <span className="phase-badge">Phase 1</span>
         <span className="phase-title">Crochetage</span>
         <span className="phase-close" onClick={onClose}>✕</span>
       </div>
 
-      {/* Scène principale */}
       <div className="scene-area">
         <LockScene
           pickAngle={pickAngle}
@@ -224,14 +257,12 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
           pickBroken={pickBroken}
           inZone={inZone}
           successProgress={successProgress}
-          //hint={hint}
           selectedTool={selectedTool}
           onPlaceWrench={handlePlaceWrench}
           onPlacePick={handlePlacePick}
         />
       </div>
 
-      {/* Toolbox */}
       <ToolBox
         selected={selectedTool}
         placed={placed}
@@ -240,22 +271,27 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
         onSelect={handleSelectTool}
       />
 
-      {/* Instructions */}
       <div className="hint-bar">
         {!placed.wrench && !selectedTool && (
           <span>Sélectionne un outil dans la boîte →</span>
         )}
         {selectedTool === "wrench" && (
-          <span>Clique sur <kbd>HAUT</kbd> ou <kbd>BAS</kbd> pour positionner le tournevis</span>
+          <span>
+            Clique sur <kbd>HAUT</kbd> ou <kbd>BAS</kbd> pour positionner le tournevis
+          </span>
         )}
         {placed.wrench && !placed.pick && selectedTool === "pick" && (
           <span>Clique sur la serrure pour insérer le pick</span>
         )}
         {placed.wrench && !placed.pick && selectedTool === null && (
-          <span>Sélectionne le <strong>lockpick</strong></span>
+          <span>
+            Sélectionne le <strong>lockpick</strong>
+          </span>
         )}
         {placed.pick && !isTensioning && (
-          <span>Déplace la souris + maintiens <kbd>E</kbd> pour appliquer la tension</span>
+          <span>
+            Déplace la souris + maintiens <kbd>E</kbd> pour appliquer la tension
+          </span>
         )}
         {isTensioning && inZone && (
           <span className="hint-good">Maintiens ! Tu y es presque…</span>
@@ -263,8 +299,12 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
         {isTensioning && !inZone && (
           <span className="hint-bad">Mauvaise position — relâche !</span>
         )}
-        {hint === "hot" && !isTensioning && <span className="hint-hot">● Très proche !</span>}
-        {hint === "warm" && !isTensioning && <span className="hint-warm">● Proche…</span>}
+        {hint === "hot" && !isTensioning && placed.pick && (
+          <span className="hint-hot">● Très proche !</span>
+        )}
+        {hint === "warm" && !isTensioning && placed.pick && (
+          <span className="hint-warm">● Proche…</span>
+        )}
       </div>
     </div>
   );

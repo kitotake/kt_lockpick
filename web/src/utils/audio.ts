@@ -1,14 +1,23 @@
 // Synthèse audio Web Audio API — pas besoin de fichiers .mp3
 const ctx: AudioContext | null = (() => {
-  try { return new (window.AudioContext || (window as any).webkitAudioContext)(); }
-  catch { return null; }
+  try {
+    return new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+  } catch {
+    return null;
+  }
 })();
 
 function resume() {
-  if (ctx && ctx.state === "suspended") ctx.resume();
+  if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
 }
 
-function tone(freq: number, duration: number, type: OscillatorType = "sine", vol = 0.3, detune = 0) {
+function tone(
+  freq: number,
+  duration: number,
+  type: OscillatorType = "sine",
+  vol = 0.3,
+  detune = 0
+) {
   if (!ctx) return;
   resume();
   const osc = ctx.createOscillator();
@@ -27,7 +36,7 @@ function tone(freq: number, duration: number, type: OscillatorType = "sine", vol
 function noise(duration: number, vol = 0.15, bandpass?: number) {
   if (!ctx) return;
   resume();
-  const bufferSize = ctx.sampleRate * duration;
+  const bufferSize = Math.floor(ctx.sampleRate * duration);
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
@@ -104,26 +113,30 @@ export function playSound(type: string) {
       break;
 
     case "engine_start":
-      // Crescendo moteur
       if (!ctx) return;
       resume();
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc1.connect(gain); osc2.connect(gain);
-      gain.connect(ctx.destination);
-      osc1.type = "sawtooth"; osc2.type = "square";
-      osc1.frequency.setValueAtTime(50, ctx.currentTime);
-      osc1.frequency.linearRampToValueAtTime(120, ctx.currentTime + 1.5);
-      osc2.frequency.setValueAtTime(45, ctx.currentTime);
-      osc2.frequency.linearRampToValueAtTime(110, ctx.currentTime + 1.5);
-      gain.gain.setValueAtTime(0.01, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.4);
-      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 1.5);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2);
-      osc1.start(); osc2.start();
-      osc1.stop(ctx.currentTime + 2);
-      osc2.stop(ctx.currentTime + 2);
+      {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.type = "sawtooth";
+        osc2.type = "square";
+        osc1.frequency.setValueAtTime(50, ctx.currentTime);
+        osc1.frequency.linearRampToValueAtTime(120, ctx.currentTime + 1.5);
+        osc2.frequency.setValueAtTime(45, ctx.currentTime);
+        osc2.frequency.linearRampToValueAtTime(110, ctx.currentTime + 1.5);
+        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.4);
+        gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 1.5);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2);
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 2);
+        osc2.stop(ctx.currentTime + 2);
+      }
       break;
 
     default:

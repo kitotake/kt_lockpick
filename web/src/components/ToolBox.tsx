@@ -2,7 +2,6 @@ import type { Tool, ToolPlaced } from "./LockpickPhase";
 import toolImg from "../assets/tool.png";
 import lockImg from "../assets/lock.png";
 
-
 interface Props {
   selected: Tool;
   placed: ToolPlaced;
@@ -16,32 +15,31 @@ export default function ToolBox({ selected, placed, picksLeft, maxPicks, onSelec
     <div className="toolbox">
       <div className="toolbox-label">Outils</div>
 
-      {/* Tournevis */}
+      {/* Tournevis de tension */}
       <div
         className={`tool-slot ${selected === "wrench" ? "slot-active" : ""} ${placed.wrench ? "slot-used" : ""}`}
         onClick={() => !placed.wrench && onSelect("wrench")}
-        title="Tournevis de tension (Numpad 8)"
+        title="Tournevis de tension"
       >
         <div className="tool-icon wrench-icon">
-         <img src={toolImg} />
+          <img src={toolImg} alt="tournevis" />
         </div>
         <div className="tool-name">Tournevis</div>
-        <div className="tool-key">NUM 8</div>
+        <div className="tool-key">WRENCH</div>
         {placed.wrench && <div className="tool-placed-badge">Posé</div>}
       </div>
 
-      {/* Lockpick — compteur */}
+      {/* Lockpick + compteur */}
       <div
         className={`tool-slot ${selected === "pick" ? "slot-active" : ""} ${placed.pick ? "slot-used" : ""} ${picksLeft === 0 ? "slot-empty" : ""}`}
         onClick={() => !placed.pick && picksLeft > 0 && onSelect("pick")}
-        title="Lockpick (Numpad 5)"
+        title="Lockpick"
       >
         <div className="tool-icon" style={{ width: "24px", height: "24px" }}>
-          <img src={lockImg} />
+          <img src={lockImg} alt="lockpick" />
         </div>
         <div className="tool-name">Lockpick</div>
-        <div className="tool-key">NUM 5</div>
-        {/* Compteur de picks */}
+        <div className="tool-key">PICK</div>
         <div className="pick-counter">
           {Array.from({ length: maxPicks }).map((_, i) => (
             <div
@@ -53,7 +51,6 @@ export default function ToolBox({ selected, placed, picksLeft, maxPicks, onSelec
         {placed.pick && <div className="tool-placed-badge">Inséré</div>}
       </div>
 
-      {/* Légende */}
       <div className="toolbox-legend">
         <div className="legend-row">
           <kbd>E</kbd> Tension

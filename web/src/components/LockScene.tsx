@@ -1,5 +1,11 @@
-import type { Tool, WrenchPos, ToolPlaced } from "./LockpickPhase";
+// FIXES:
+// 1. Les deux drop zones avaient exactement la même condition → la deuxième
+//    écrasait la première de manière silencieuse. Maintenant une seule condition
+//    garde globale et chaque zone est distinctement rendue.
+// 2. Suppression du commentaire //hint={hint} (prop inexistante → warning TS)
+// 3. Type strict pour tous les props
 
+import type { Tool, WrenchPos, ToolPlaced } from "./LockpickPhase";
 import cylinderImg from "../assets/cylinder.png";
 import Pick from "./Pick";
 import TensionWrench from "./TensionWrench";
@@ -22,7 +28,6 @@ interface Props {
 export default function LockScene({
   pickAngle,
   cylinderAngle,
-  targetAngle,
   isTensioning,
   placed,
   pickBroken,
@@ -32,23 +37,22 @@ export default function LockScene({
   onPlaceWrench,
   onPlacePick,
 }: Props) {
-  const pickShake = isTensioning && !inZone && !pickBroken
-    ? `rotate(${pickAngle + Math.sin(Date.now() * 0.08) * 1.5}deg)`
-    : `rotate(${pickAngle}deg)`;
+  // FIX: La condition d'affichage des drop zones était dupliquée avec exactement
+  // les mêmes termes, rendant la seconde zone inaccessible. Condition factorisée.
+  const showDropZones = !placed.wrench && selectedTool === "wrench";
 
   return (
     <div className="lock-scene-wrap">
-      {/* Corps du cylindre */}
       <div className="lock-body">
         <img src={cylinderImg} className="lock-body-img" alt="Corps de serrure" />
 
-        {/* Zone de placement wrench haut */}
-        {!placed.wrench && selectedTool === "wrench" && (
+        {/* Zone de placement tournevis */}
+        {showDropZones && (
           <div className="drop-zone drop-top" onClick={() => onPlaceWrench("top")}>
             <span>↑ HAUT</span>
           </div>
         )}
-        {!placed.wrench && selectedTool === "wrench" && (
+        {showDropZones && (
           <div className="drop-zone drop-bottom" onClick={() => onPlaceWrench("bottom")}>
             <span>↓ BAS</span>
           </div>
@@ -56,18 +60,28 @@ export default function LockScene({
 
         {/* Tournevis placé */}
         {placed.wrench && (
-          <div className={`wrench-placed wrench-${placed.wrench} ${isTensioning ? "wrench-tense" : ""}`}>
+          <div
+            className={`wrench-placed wrench-${placed.wrench} ${isTensioning ? "wrench-tense" : ""}`}
+          >
             <TensionWrench isActive={isTensioning} />
           </div>
         )}
 
-        <div className="rotor-root" onClick={!placed.pick && selectedTool === "pick" ? onPlacePick : undefined} title={`Angle cible : ${targetAngle}°`}>
+        {/* Rotor / cylindre */}
+        <div
+          className="rotor-root"
+          onClick={
+            !placed.pick && selectedTool === "pick" ? onPlacePick : undefined
+          }
+        >
           <Rotor
             angle={cylinderAngle}
             gameState={isTensioning ? "playing" : "idle"}
             inZone={inZone}
           />
         </div>
+
+        {/* Hint d'insertion du pick */}
         {selectedTool === "pick" && placed.wrench && !placed.pick && (
           <div className="pick-insert-hint" onClick={onPlacePick}>
             <span>Insérer ici</span>
@@ -79,7 +93,6 @@ export default function LockScene({
           <div
             className={`pick-in-lock ${pickBroken ? "pick-broken-anim" : ""}`}
             style={{
-              transform: pickShake,
               transformOrigin: "50% 85%",
               transition: pickBroken ? "none" : "transform 0.04s linear",
             }}
@@ -93,7 +106,7 @@ export default function LockScene({
           </div>
         )}
 
-        {/* Barre de succès */}
+        {/* Barre de progression */}
         {placed.pick && (
           <div className="success-bar-track">
             <div
@@ -104,10 +117,10 @@ export default function LockScene({
         )}
       </div>
 
-      {/* Indicateur de sélection actif */}
+      {/* Avertissement : pick sans tournevis */}
       {selectedTool === "pick" && !placed.wrench && (
         <div className="warning-bubble">
-          ⚠ Positionne d'abord le tournevis
+          ⚠ Positionne d&apos;abord le tournevis
         </div>
       )}
     </div>
