@@ -1,5 +1,5 @@
 // ─── Imports des vraies images ────────────────────────────────────────────────
-import serrureImg from "../assets/cylinder.png";
+import serrureImg from "../assets/serrure.png";
 import Cylinder from "./Cylinder";
 import Pick from "./Pick";
 import TensionWrench from "./TensionWrench";
