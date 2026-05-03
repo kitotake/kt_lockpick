@@ -6,7 +6,7 @@ export default function TensionWrench({ isActive }: any) {
 
   return (
     <div
-      className={`wrench-img-wrapper ${isActive ? "wrench-active" : ""}`}
+      className={`tool-icon wrench-icon ${isActive ? "wrench-active" : ""}`}
       style={{ transform: `translateX(${vibration}px)` }}
     >
       <img src={toolImg} />

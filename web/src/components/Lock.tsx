@@ -1,4 +1,6 @@
+// 1. Utilise une seule méthode d'importation (la plus simple)
 import cylinderImg from "../assets/cylinder.png";
+
 import Pick from "./Pick";
 import TensionWrench from "./TensionWrench";
 import Rotor from "./Rotor";
@@ -18,11 +20,10 @@ export default function Lock({
   return (
     <div className="lock-wrapper">
       <div className="lock-scene">
-
-        <img src={cylinderImg} className="lock-body-img" />
+        {/* L'image s'affichera ici grâce à l'import en haut */}
+        <img src={cylinderImg} className="lock-body-img" alt="Cylinder Body" />
 
         <div className="lock-hole-area">
-
           <Rotor
             angle={cylinderAngle}
             gameState={gameState}
@@ -37,7 +38,6 @@ export default function Lock({
             isTensionOn={isTensionOn}
             gameState={gameState}
           />
-
         </div>
       </div>
     </div>

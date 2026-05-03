@@ -1,346 +1,689 @@
-// ══════════════════════════════════════════════════════════════════════════════
-// LOCKPICK NUI — STYLES SCSS avec vraies images
-// Dimensions de référence des images sources :
-//   rotor.png  : 1380×752  (ratio ~1.835) → affichée à 340×185px
-//   cylinder.png : 677×369   (ratio ~1.835) → affichée à 120×65px
-//   tool.png     : 1408×768  (ratio ~1.833) → affichée à 90×49px (rotée 90°)
-//   lock.png     : 1408×768  (ratio ~1.833) → affichée à 110×60px
-// ══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// LOCKPICK NUI — STYLES
+// Thème : industriel noir, métal brossé, sombre et immersif
+// ═══════════════════════════════════════════════════════════════
 
-// ─── Variables ────────────────────────────────────────────────────────────────
-$c-bg:       #07070a;
-$c-overlay:  rgba(0,0,0,0.90);
-$c-success:  #2ecc71;
-$c-fail:     #e74c3c;
-$c-active:   #f39c12;
-$c-text:     #c8c8d4;
-$c-muted:    #4a4a5e;
-$c-metal:    #3e3e46;
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap');
 
-// Taille d'affichage de la rotor de base
-// Le trou de la rotor est approximativement centré à 50% X, 48% Y de l'image
-// ─── Variables Taille ────────────────────────────────────────────────────────
-$lock-w: 470px;           // Taille de référence rotor.png
-$lock-h: 283px;           // ratio ≈ 1.835
+// ─── Variables ────────────────────────────────────────────────
+$bg:          #080a0c;
+$surface:     #0e1114;
+$surface-2:   #14181d;
+$border:      #1e2530;
+$border-hi:   #2a3340;
+$metal:       #2c3440;
+$metal-hi:    #3a4555;
+$accent:      #e8a020;
+$accent-dim:  #8a5c0a;
+$green:       #20c060;
+$green-dim:   #0a5028;
+$red:         #e03030;
+$red-dim:     #601010;
+$text:        #b8c4d0;
+$text-muted:  #556070;
+$text-hi:     #e0eaf4;
+$mono:        'Share Tech Mono', monospace;
+$sans:        'Barlow', sans-serif;
 
-// Tailles réelles des éléments (basées sur les vraies images)
-$cylinder-display-size: 138px;   // au lieu de 500px → trop gros
-$wrench-display-size:   92px;
-$pick-display-size:     78px;
-
-// Position du centre du trou (très important)
-$hole-center-x: 50%;
-$hole-center-y: 49.5%;   // légèrement au-dessus du milieu visuel
-
-// ─── Reset ────────────────────────────────────────────────────────────────────
+// ─── Reset ────────────────────────────────────────────────────
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, #root {
   width: 100%; height: 100%;
   background: transparent;
   overflow: hidden;
-  font-family: 'Courier New', monospace;
+  font-family: $sans;
+  color: $text;
 }
 
-// ─── Launcher DEV ─────────────────────────────────────────────────────────────
+// ─── DEV Launcher ─────────────────────────────────────────────
 .dev-launcher {
   display: flex; flex-direction: column; align-items: center;
-  justify-content: center; height: 100vh; gap: 16px;
-  color: $c-text; background: $c-bg;
+  justify-content: center; height: 100vh; gap: 14px;
+  background: $bg;
+
+  .dev-title {
+    font-family: $mono; font-size: 11px; color: $text-muted;
+    letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px;
+  }
 
   button {
-    padding: 12px 28px; background: $c-metal;
-    border: 1px solid lighten($c-metal, 10%); color: $c-text;
-    cursor: pointer; font-family: inherit; font-size: 13px;
-    letter-spacing: 0.08em; border-radius: 4px;
-    transition: background 0.2s;
-    &:hover { background: lighten($c-metal, 12%); }
+    padding: 10px 28px; background: $surface-2;
+    border: 1px solid $border-hi; color: $text;
+    cursor: pointer; font-family: $sans; font-size: 13px;
+    letter-spacing: 0.06em; border-radius: 3px;
+    transition: all 0.15s;
+    &:hover { background: $metal; border-color: $accent; color: $accent; }
   }
 
-  p { font-size: 11px; color: $c-muted; text-align: center; line-height: 1.7; }
-  code { background: #111; padding: 2px 6px; color: $c-active; font-size: 10px; }
+  p { font-size: 11px; color: $text-muted; margin-top: 12px; }
+  code { background: #111; padding: 2px 7px; color: $accent; font-family: $mono; font-size: 10px; border-radius: 2px; }
 }
 
-// ─── Overlay principal ─────────────────────────────────────────────────────────
-.overlay {
+// ─── NUI Root ─────────────────────────────────────────────────
+.nui-root {
   position: fixed; inset: 0;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  background: $c-overlay;
-  gap: 20px;
-  backdrop-filter: blur(3px);
-  user-select: none;
-
-  &.shake { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both; }
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 32px;
+  pointer-events: none;
+  right: 280px;
 }
 
-@keyframes shake {
-  0%,100% { transform: translateX(0); }
-  15%,55% { transform: translateX(-10px); }
-  35%,75% { transform: translateX(10px); }
-}
+// ─── Phase Container ──────────────────────────────────────────
+.phase-container {
+  pointer-events: all;
+  width: 420px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: 6px;
+  display: flex; flex-direction: column; gap: 0;
+  box-shadow: 0 0 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.04);
+  overflow: hidden;
+  position: relative;
 
-// ─── Tentatives ───────────────────────────────────────────────────────────────
-.attempts-bar {
-  display: flex; gap: 10px;
-
-  .attempt-pip {
-    width: 30px; height: 5px; border-radius: 3px;
-    transition: background 0.3s, box-shadow 0.3s;
-    &.active  { background: $c-active; box-shadow: 0 0 8px rgba($c-active, 0.6); }
-    &.broken  { background: #1e1e26; }
+  // Grain texture
+  &::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
   }
 }
 
-// ─── Wrapper rotor ──────────────────────────────────────────────────────────
-.lock-wrapper {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center;
-}
+// ─── Phase Header ─────────────────────────────────────────────
+.phase-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: $bg;
+  border-bottom: 1px solid $border;
+  position: relative; z-index: 1;
 
-// ─── Anneau (shackle) ─────────────────────────────────────────────────────────
-.lock-shackle {
-  width: 60px; height: 52px;
-  border: 9px solid #1c1c22;
-  border-bottom: none;
-  border-radius: 30px 30px 0 0;
-  margin-bottom: -4px;
-  position: relative; z-index: 0;
-  transition: transform 0.55s cubic-bezier(0.34,1.56,0.64,1), border-color 0.3s;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 -2px 6px rgba(0,0,0,0.4);
+  .phase-badge {
+    font-family: $mono; font-size: 9px; letter-spacing: 0.15em;
+    background: $metal; color: $accent; padding: 3px 8px;
+    border-radius: 2px; text-transform: uppercase;
+    border: 1px solid $accent-dim;
+  }
+  .phase-badge-2 { background: $metal; color: $green; border-color: $green-dim; }
 
-  &.open {
-    transform: rotate(-32deg) translateY(-14px);
-    border-color: $c-success;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.4), 0 0 12px rgba($c-success, 0.5);
+  .phase-title {
+    font-size: 12px; font-weight: 500; letter-spacing: 0.1em;
+    color: $text-hi; text-transform: uppercase; flex: 1;
+  }
+
+  .phase-close {
+    color: $text-muted; cursor: pointer; font-size: 14px; padding: 2px 6px;
+    transition: color 0.15s;
+    &:hover { color: $red; }
   }
 }
 
-// ─── Scène principale ─────────────────────────────────────────────────────────
-// Conteneur calé exactement sur l'image rotor.png
-.lock-scene {
-  position: relative;
-  width: $lock-w;
-  height: $lock-h;
-  z-index: 1;
+// ─── Scene area ───────────────────────────────────────────────
+.scene-area {
+  padding: 30px 20px;
+  position: relative; z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.lock-body-img {
+// ─── Lock Scene ───────────────────────────────────────────────
+.lock-scene-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 19px;
+}
+
+.lock-body {
+  position: relative;
+  width: 380px; height: 380px;
+  background: radial-gradient(circle at 50% 50%, #1a2030 0%, #0a0e14 70%);
+  border: 1px solid $border-hi;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 4px $bg, 0 0 0 5px $border, 0 8px 32px rgba(0,0,0,0.6);
+}
+
+// ─── Drop zones tournevis ──────────────────────────────────────
+.drop-zone {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  width: 120px; height: 48px;
+  background: rgba($accent, 0.12);
+  border: 2px solid $accent;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+  box-shadow: 0 0 12px rgba($accent, 0.2);
+
+  span { font-family: $mono; font-size: 12px; font-weight: 600; color: $accent; letter-spacing: 0.15em; text-transform: uppercase; }
+
+  &:hover {
+    background: rgba($accent, 0.22);
+    
+    box-shadow: 0 0 20px rgba($accent, 0.4);
+  }
+
+  &.drop-top { top: 20px; }
+  &.drop-bottom { bottom: 20px; }
+}
+
+// ─── Tournevis placé ──────────────────────────────────────────
+.wrench-placed {
+  position: absolute; z-index: 8;
+  display: flex; align-items: center; justify-content: center;
+  width: 300px;
+  height: 300px;
+
+  &.wrench-top { top: 16px; left: 50%; transform: translateX(-50%); }
+  &.wrench-bottom { bottom: 16px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+
+  &.wrench-tense .wrench-shaft {
+    background: $accent;
+    box-shadow: 0 0 6px $accent;
+  }
+}
+
+.wrench-visual {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.wrench-shaft {
+  width: 6px; height: 30px;
+  background: $metal-hi;
+  border-radius: 3px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.wrench-head {
+  width: 16px; height: 8px;
+  background: $metal-hi;
+  border-radius: 1px 1px 3px 3px;
+}
+
+// ─── Rotor ────────────────────────────────────────────────────
+.rotor {
+  position: relative;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #1c2530, #2a3545, #1c2530, #2a3545, #1c2530);
+  border: 3px solid $border-hi;
+  display: flex; align-items: center; justify-content: center;
+  cursor: default;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+
+  &.rotor-green { border-color: $green; box-shadow: 0 0 16px rgba($green, 0.3), inset 0 0 20px rgba(0,0,0,0.5); }
+  &.rotor-red   { border-color: $red;   box-shadow: 0 0 12px rgba($red, 0.25), inset 0 0 20px rgba(0,0,0,0.5); }
+  &.rotor-amber { border-color: $accent; box-shadow: 0 0 10px rgba($accent, 0.2), inset 0 0 20px rgba(0,0,0,0.5); }
+}
+
+.rotor-root {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  mix-blend-mode: screen;
-  filter: brightness(0.88) saturate(0.75) contrast(1.05);
-  pointer-events: none;
-  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
 }
 
-// ─── Zone centrée sur le trou de la rotor ───────────────────────────────────
-// Le trou de la rotor (rotor.png) est visuellement centré à ~50% X, ~50% Y
-// On positionne l'ancre là, et les outils autour.
-.lock-hole-area {
+// ─── Trou de serrure ──────────────────────────────────────────
+.keyhole {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  pointer-events: none;
+}
+.keyhole-circle {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #040608;
+  border: 1px solid #0a0d12;
+}
+.keyhole-slot {
+  width: 8px; height: 14px;
+  background: #040608;
+  border-radius: 0 0 4px 4px;
+  margin-top: -4px;
+}
+
+// ─── Pick insert hint ─────────────────────────────────────────
+.pick-insert-hint {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  background: rgba($green, 0.08);
+  border: 2px dashed rgba($green, 0.5);
+  z-index: 12;
+  transition: all 0.2s;
+
+  span { font-family: $mono; font-size: 11px; color: $green; letter-spacing: 0.1em; font-weight: 600; }
+
+  &:hover { 
+    background: rgba($green, 0.15);
+    border-color: $green;
+    box-shadow: 0 0 16px rgba($green, 0.25);
+  }
+}
+
+// ─── Pick dans la serrure ─────────────────────────────────────
+.pick-in-lock {
   position: absolute;
-  top: $hole-center-y;
-  left: $hole-center-x;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 300px;
   transform: translate(-50%, -50%);
-  width: 0;
-  height: 0;
-  z-index: 10;
+  z-index: 9;
 }
 
-// ─── Indicateur de zone cible ─────────────────────────────────────────────────
-.target-zone {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  margin-left: -1px;
-  width: 2px; height: 38px;
-  background: linear-gradient(to top, transparent, rgba($c-active, 0.25));
-  transform-origin: center bottom;
-  border-radius: 1px;
-  pointer-events: none;
+.pick-shaft {
+  width: 4px; height: 100%;
+  background: linear-gradient(180deg, $metal-hi 0%, #7a8fa8 100%);
+  border-radius: 2px 2px 0 0;
+  position: relative;
 }
 
-// ─── CYLINDRE (cylinder.png) ──────────────────────────────────────────────────
-// Affiché centré sur le trou, par-dessus la rotor.
-// Dimensions : 677×369 → ratio 1.835 → on affiche en 110×60px
+.pick-tip {
+  position: absolute; bottom: -2px; left: -3px;
+  width: 10px; height: 8px;
+  background: #a0b0c0;
+  border-radius: 0 0 3px 3px;
+  transition: transform 0.1s, background 0.1s;
 
-// ─── CYLINDRE (cylinder.png) ──────────────────────────────────────────────────
-.cylinder-img-wrapper {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: $cylinder-display-size;
-  height: $cylinder-display-size * 0.546; // garde le ratio
-  margin-top: -$cylinder-display-size * 0.273;
-  margin-left: -$cylinder-display-size * 0.5;
-  z-index: 5;
-
-  &.cyl-active  { filter: brightness(1.12) drop-shadow(0 0 8px rgba($c-success, 0.6)); }
-  &.cyl-success { filter: brightness(1.25) drop-shadow(0 0 12px rgba($c-success, 0.75)) sepia(0.2) hue-rotate(75deg); }
+  &.tip-bent {
+    transform: rotate(35deg) translateX(4px);
+    background: $red;
+  }
 }
 
-// ─── TOURNEVIS fixe (tool.png) ────────────────────────────────────────────────
-// tool.png est vertical (tournevis pointé vers le bas).
-// On le place à droite du trou, légèrement incliné, FIXE.
-// Dimensions : 1408×768 → ratio ~1.83 → affiché en 36×66px (portrait)
-
-.wrench-img-wrapper {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: $wrench-display-size;
-  height: $wrench-display-size * 1.83;
-  margin-top: -28px;
-  margin-left: 42px;           // décalage à droite
-  z-index: 6;
-  transform: rotate(12deg);
-  transform-origin: center top;
-}
-// ─── LOCKPICK oscillant (lock.png) ────────────────────────────────────────────
-// lock.png est une tige horizontale avec crochet à droite.
-// On la place verticalement (rotate -90deg de base) pour qu'elle entre
-// dans la rotor par le bas, et oscille autour de son point d'insertion.
-// Dimensions : 1408×768 → ratio ~1.83 → affiché en 80×44px puis rotaté
-
-.pick-img-wrapper {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: $pick-display-size;
-  height: $pick-display-size * 2.1;
-  margin-top: 8px;             // ajustement vertical
-  margin-left: -($pick-display-size * 0.5);
-  transform-origin: center bottom;   // pivot en bas = point d'insertion
-  z-index: 7;
-  transition: transform 0.08s linear;
+.pick-broken-anim {
+  animation: pickBreak 0.3s ease forwards;
 }
 
-.pick-img {
-  width: 220px;
-  height: 220px;
-  object-fit: contain;
-} 
-// ─── Halos de résultat ────────────────────────────────────────────────────────
-.lock-glow {
-  position: absolute; inset: -16px;
-  border-radius: 16px;
-  pointer-events: none;
-  animation: glowPulse 0.7s ease-in-out infinite alternate;
-  z-index: 20;
-
-  &.success-glow { box-shadow: 0 0 50px 12px rgba($c-success, 0.3); }
-  &.fail-glow    { box-shadow: 0 0 50px 12px rgba($c-fail,    0.3); }
+@keyframes pickBreak {
+  0% { filter: none; }
+  30% { filter: brightness(2) hue-rotate(-20deg); }
+  100% { filter: brightness(0.5) sepia(1) hue-rotate(-20deg); }
 }
 
-@keyframes glowPulse {
-  from { opacity: 0.6; } to { opacity: 1; }
-}
-
-// ─── Barre de progression ─────────────────────────────────────────────────────
-.success-bar-wrapper {
-  width: $lock-w; height: 3px;
+// ─── Barre de succès ──────────────────────────────────────────
+.success-bar-track {
+  position: absolute; bottom: -10px;
+  left: 10%; width: 80%; height: 3px;
   background: rgba(255,255,255,0.05);
   border-radius: 2px; overflow: hidden;
 }
 
 .success-bar-fill {
   height: 100%;
-  background: linear-gradient(to right, $c-success, #a8ffcc);
+  background: linear-gradient(90deg, $green-dim, $green);
   border-radius: 2px;
   transition: width 0.05s linear;
-  box-shadow: 0 0 8px rgba($c-success, 0.6);
+  box-shadow: 0 0 6px rgba($green, 0.6);
 }
 
-// ─── Instructions ─────────────────────────────────────────────────────────────
-.instructions {
-  font-size: 11px; color: $c-muted;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  display: flex; align-items: center; gap: 8px;
+// ─── Warning bubble ───────────────────────────────────────────
+.warning-bubble {
+  font-family: $mono; font-size: 10px; color: $accent;
+  background: rgba($accent, 0.08); border: 1px solid $accent-dim;
+  border-radius: 3px; padding: 6px 12px;
+}
+
+// ─── ToolBox ──────────────────────────────────────────────────
+.toolbox {
+  position: fixed;
+  right: 0px; 
+  top: 50%;
+  transform: translateY(-50%);
+  width: 130px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: 6px;
+  padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  pointer-events: all;
+  z-index: 200;
+}
+
+.toolbox-label {
+  font-family: $mono; font-size: 9px; letter-spacing: 0.2em;
+  color: $text-muted; text-transform: uppercase;
+  text-align: center; border-bottom: 1px solid $border;
+  padding-bottom: 8px; margin-bottom: 4px;
+}
+
+.tool-slot {
+  border: 1px solid $border;
+  border-radius: 4px;
+  padding: 8px 6px;
+  cursor: pointer;
+  background: $surface-2;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  position: relative;
+  transition: all 0.15s;
+  min-height: 80px;
+  justify-content: center;
+
+  &:hover:not(.slot-used):not(.slot-empty) {
+    border-color: $border-hi;
+    background: $metal;
+  }
+
+  &.slot-active {
+    border-color: $accent;
+    background: rgba($accent, 0.08);
+    box-shadow: 0 0 8px rgba($accent, 0.2);
+  }
+
+  &.slot-used {
+    opacity: 0.45; cursor: default;
+  }
+
+  &.slot-empty {
+    opacity: 0.25; cursor: not-allowed;
+  }
+}
+
+.tool-icon {
+  width: 28px; height: 44px;
+  color: $text-muted;
+  display: flex; align-items: center; justify-content: center;
+
+  svg { width: 100%; height: 100%; }
+}
+
+.slot-active .tool-icon { color: $accent; }
+
+.tool-name {
+  font-size: 10px; color: $text-muted; text-align: center;
+  font-weight: 500; letter-spacing: 0.05em;
+}
+
+.tool-key {
+  font-family: $mono; font-size: 8px; color: $text-muted;
+  background: $bg; border: 1px solid $border;
+  padding: 1px 5px; border-radius: 2px;
+}
+
+.tool-placed-badge {
+  position: absolute; top: 3px; right: 3px;
+  font-family: $mono; font-size: 7px; color: $green;
+  background: rgba($green, 0.1); border: 1px solid $green-dim;
+  padding: 1px 4px; border-radius: 2px;
+}
+
+// ─── Pick counter ─────────────────────────────────────────────
+.pick-counter {
+  display: flex; gap: 3px; margin-top: 2px;
+}
+
+.pick-pip {
+  width: 18px; height: 4px; border-radius: 2px;
+  transition: background 0.2s;
+
+  &.pip-active { background: $accent; box-shadow: 0 0 4px rgba($accent, 0.5); }
+  &.pip-broken { background: $border-hi; }
+}
+
+// ─── Toolbox legend ───────────────────────────────────────────
+.toolbox-legend {
+  margin-top: 4px;
+  border-top: 1px solid $border;
+  padding-top: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+.legend-row {
+  display: flex; align-items: center; gap: 6px;
+  font-family: $mono; font-size: 9px; color: $text-muted;
 
   kbd {
-    background: #1a1a22; border: 1px solid #2a2a36;
-    border-bottom: 2px solid #111;
-    padding: 2px 10px; border-radius: 4px;
-    font-family: inherit; font-size: 11px; color: $c-text;
+    background: $bg; border: 1px solid $border-hi;
+    border-bottom: 2px solid $bg;
+    padding: 1px 5px; border-radius: 2px;
+    font-family: $mono; font-size: 8px; color: $text;
   }
 }
 
-.result-text {
-  font-size: 15px; font-weight: bold;
-  letter-spacing: 0.14em;
-  animation: fadeUp 0.3s ease both;
+// ─── Hint bar ─────────────────────────────────────────────────
+.hint-bar {
+  padding: 8px 14px;
+  border-top: 1px solid $border;
+  font-family: $mono; font-size: 10px; color: $text-muted;
+  letter-spacing: 0.08em;
+  display: flex; align-items: center; gap: 8px;
+  min-height: 36px;
+  position: relative; z-index: 1;
+
+  kbd {
+    background: $bg; border: 1px solid $border-hi;
+    padding: 1px 6px; border-radius: 2px;
+    font-family: $mono; font-size: 9px; color: $text;
+  }
+
+  strong { color: $text; }
 }
-.success-text { color: $c-success; text-shadow: 0 0 14px rgba($c-success, 0.6); }
-.fail-text    { color: $c-fail;    text-shadow: 0 0 14px rgba($c-fail,    0.6); }
+
+.hint-good { color: $green !important; }
+.hint-bad  { color: $red !important; animation: blink 0.4s ease infinite alternate; }
+.hint-hot  { color: $accent !important; font-weight: 500; }
+.hint-warm { color: #7a8a50 !important; }
+
+@keyframes blink { from { opacity: 1; } to { opacity: 0.4; } }
+
+// ─── Shake animation ──────────────────────────────────────────
+.shake {
+  animation: shakeAnim 0.45s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shakeAnim {
+  0%,100% { transform: translateX(0); }
+  15%,55% { transform: translateX(-8px); }
+  35%,75% { transform: translateX(8px); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 2 — HOTWIRE
+// ═══════════════════════════════════════════════════════════════
+
+.wire-svg-overlay {
+  width: 100vw; height: 100vh;
+  position: fixed !important;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.hotwire-layout {
+  display: flex; align-items: stretch;
+  gap: 0; padding: 16px;
+  position: relative; z-index: 1;
+}
+
+// ─── Wire Panel ───────────────────────────────────────────────
+.wire-panel, .slot-panel {
+  width: 110px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.panel-label {
+  font-family: $mono; font-size: 9px; letter-spacing: 0.2em;
+  color: $text-muted; text-transform: uppercase;
+  text-align: center; padding-bottom: 6px;
+  border-bottom: 1px solid $border;
+}
+
+.wire-row, .slot-row {
+  display: flex; align-items: center;
+  height: 48px;
+}
+
+// ─── Wire connector ───────────────────────────────────────────
+.wire-connector {
+  display: flex; align-items: center; gap: 6px;
+  cursor: grab; padding: 6px 8px;
+  border: 1px solid $border;
+  border-radius: 4px;
+  background: $surface-2;
+  user-select: none;
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover { border-color: $border-hi; background: $metal; }
+  &:active { cursor: grabbing; }
+
+  &.wire-connected { opacity: 0.7; }
+}
+
+.wire-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px currentColor;
+}
+
+.wire-label {
+  font-family: $mono; font-size: 9px; color: $text-muted;
+  flex: 1; letter-spacing: 0.05em;
+}
+
+.wire-plug {
+  display: flex; align-items: center; gap: 1px;
+}
+.plug-body {
+  width: 14px; height: 8px; border-radius: 2px;
+}
+.plug-tip {
+  width: 5px; height: 4px;
+  background: $text-muted;
+  clip-path: polygon(0 10%, 100% 50%, 0 90%);
+}
+
+// ─── Dashboard center ─────────────────────────────────────────
+.dashboard-center {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 0 12px;
+  justify-content: center; align-items: center;
+}
+
+.dash-label {
+  font-family: $mono; font-size: 9px; letter-spacing: 0.2em;
+  color: $text-muted; text-transform: uppercase;
+}
+
+.dash-panel {
+  width: 100%;
+  background: $bg; border: 1px solid $border;
+  border-radius: 4px; padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.dash-status {
+  display: flex; align-items: center; gap: 8px;
+  font-family: $mono; font-size: 10px; color: $text-muted;
+  letter-spacing: 0.1em;
+
+  &.dash-ok { color: $green; }
+}
+
+.dash-light-main {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: $border-hi;
+  border: 1px solid $border;
+  transition: all 0.3s;
+
+  .dash-ok & {
+    background: $green;
+    box-shadow: 0 0 8px rgba($green, 0.8);
+  }
+}
+
+// ─── Error track ──────────────────────────────────────────────
+.error-track {
+  display: flex; flex-direction: column; gap: 5px;
+}
+
+.error-label {
+  font-family: $mono; font-size: 8px; color: $text-muted;
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+
+.error-pips {
+  display: flex; gap: 3px;
+}
+
+.error-pip {
+  flex: 1; height: 4px; border-radius: 2px;
+  transition: background 0.2s;
+
+  &.pip-ok   { background: $green; box-shadow: 0 0 3px rgba($green, 0.5); }
+  &.pip-used { background: $border; }
+}
+
+// ─── Slot connectors ──────────────────────────────────────────
+.slot-connector {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px;
+  border: 1px solid $border;
+  border-radius: 4px;
+  background: $surface-2;
+  width: 100%;
+  transition: all 0.15s;
+
+  &.slot-correct { border-color: $green; background: rgba($green, 0.06); }
+  &.slot-wrong   { border-color: $red; background: rgba($red, 0.06); }
+  &.slot-shake   { animation: slotShake 0.4s ease; }
+}
+
+@keyframes slotShake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.slot-hole {
+  width: 14px; height: 10px;
+  background: $bg;
+  border: 1px solid $border-hi;
+  border-radius: 2px;
+}
+
+.slot-light {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: $border-hi;
+  border: 1px solid $border;
+  transition: all 0.2s;
+  margin-left: auto;
+
+  &.light-on-ok  { background: #e8c840; box-shadow: 0 0 8px rgba(232,200,64,0.8); border-color: #a08010; }
+  &.light-on-err { background: $red; box-shadow: 0 0 6px rgba($red, 0.6); border-color: $red-dim; }
+}
+
+// ─── Result overlay ───────────────────────────────────────────
+.result-overlay {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  pointer-events: none;
+}
+
+.result-icon {
+  font-size: 48px; line-height: 1;
+  animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.result-label {
+  font-family: $mono; font-size: 14px; letter-spacing: 0.2em;
+  text-transform: uppercase;
+  animation: fadeUp 0.4s ease 0.1s both;
+}
+
+.success-overlay .result-icon { color: $green; filter: drop-shadow(0 0 16px rgba($green, 0.8)); }
+.success-overlay .result-label { color: $green; }
+
+@keyframes popIn {
+  from { transform: scale(0.3); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-// ─── Boutons résultat ─────────────────────────────────────────────────────────
-.result-actions {
-  display: flex; gap: 12px;
-  animation: fadeUp 0.4s ease 0.1s both;
-
-  button {
-    padding: 8px 22px; border-radius: 4px;
-    border: 1px solid $c-metal;
-    font-family: inherit; font-size: 11px;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    cursor: pointer; transition: all 0.2s;
-  }
-
-  .btn-retry {
-    background: $c-metal; color: $c-text;
-    &:hover { background: lighten($c-metal, 10%); border-color: $c-active; color: $c-active; }
-  }
-
-  .btn-close {
-    background: transparent; color: $c-muted;
-    &:hover { background: rgba($c-fail, 0.1); border-color: $c-fail; color: $c-fail; }
-  }
-}
-
-/* 🟣 Rotor (rotation principale) */
-.rotor-img-wrapper {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 3;
-}
-
-.rotor-img {
-  width: 500px;
-  height: 315px;
-  object-fit: contain;
-}
-
-
-
-
-.pick-broken {
-  filter: brightness(0.6) sepia(1) hue-rotate(-20deg);
-  transition: transform 0.2s ease;
-}
-
-.wrench-active {
-  filter: drop-shadow(0 0 6px rgba(255,165,0,0.6));
-}
-
-.rotor-img-wrapper.cyl-fail {
-  animation: shake 0.3s ease;
-}
-
-@keyframes shake {
-  0% { transform: translateX(0); }
-  25% { transform: translateX(-6px); }
-  50% { transform: translateX(6px); }
-  75% { transform: translateX(-3px); }
-  100% { transform: translateX(0); }
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
 }

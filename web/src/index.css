@@ -36,35 +36,47 @@
 }
 
 
-/* 🟡 Pick (crochet)
-.pick-img-wrapper {
+.tool-icon {
   position: absolute;
   inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 5;
-  transform-origin: center;
+  pointer-events: none;
 }
 
-.pick-img {
-  width: 220px;
-  height: 220px;
-  object-fit: contain;
-} */
+.tool-icon.pick-icon {
+  z-index: 5;
+}
 
-/* 🟢 Wrench (outil de tension)
-.wrench-img-wrapper {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.tool-icon.pick-icon img {
+  width: 300px;
+  height: 300px;
+  object-fit: contain;
+}
+
+.tool-icon.wrench-icon {
   z-index: 4;
 }
 
-.wrench-img-wrapper img {
-  width: 200px;
-  height: 200px;
+.tool-icon.wrench-icon img {
+  width: 280px;
+  height: 280px;
   object-fit: contain;
-} */
+}
+
+.rotor-img-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.rotor-img {
+  width: 240px;
+  height: 240px;
+  object-fit: contain;
+}

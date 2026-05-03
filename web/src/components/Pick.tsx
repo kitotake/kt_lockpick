@@ -13,7 +13,7 @@ export default function Pick({ angle, inZone, isTensionOn, gameState }: any) {
 
   return (
     <div
-      className={`pick-img-wrapper ${broken ? "pick-broken" : ""}`}
+      className={`tool-icon pick-icon ${broken ? "pick-broken" : ""}`}
       style={{
         transform: `rotate(${angle}deg) ${bend} translateX(${stress}px)`
       }}

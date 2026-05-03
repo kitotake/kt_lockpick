@@ -21,12 +21,10 @@ client_scripts {
 -- Ces noms doivent correspondre aux fetch dans App.tsx
 -- fetch(`https://${resourceName}/success`)
 -- fetch(`https://${resourceName}/fail`)
-ui_page 'html/index.html'
+ui_page 'web/dist/index.html'
 
 files {
-    'html/index.html',
-    'html/assets/*.js',
-    'html/assets/*.css',
+   'web/dist/**',
 }
 
 -- ══════════════════════════════════════════════════════════════
@@ -36,15 +34,16 @@ files {
 --    npm install
 --    npm run build
 --
--- 2. Copier le contenu de dist/ dans le dossier html/ de ta ressource FiveM
+-- 2. Copier le contenu de dist/ dans le dossier web/dist/ de ta ressource FiveM
 --
 -- 3. Structure finale attendue :
 --    lockpick/
 --    ├── fxmanifest.lua
 --    ├── client/client.lua
---    └── html/
---        ├── index.html
---        └── assets/
---            ├── index-XXXX.js
---            └── index-XXXX.css
+--    └── web/
+--        ├── dist/
+--        │   ├── index.html
+--        │   └── assets/
+--        │       ├── index-XXXX.js
+--        │       └── index-XXXX.css
 -- ══════════════════════════════════════════════════════════════

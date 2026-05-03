@@ -1,180 +1,122 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import Lock from "./components/Lock";
+import { useState, useEffect, useCallback } from "react";
+import LockpickPhase from "./components/LockpickPhase";
+import HotwirePhase from "./components/HotwirePhase";
 import "./styles.scss";
 
-type GameState = "idle" | "playing" | "success" | "fail";
-
-const MAX_ATTEMPTS = 30;
-const CYLINDER_SPEED = 120;
-const SUCCESS_HOLD_TIME = 1200;
+export type Phase = "idle" | "lockpick" | "hotwire" | "complete";
+const resourceName =
+  (window as any).GetParentResourceName?.() ?? "kt_lockpick";
 
 function App() {
-  const [gameState, setGameState] = useState<GameState>("idle");
-  const [pickAngle, setPickAngle] = useState(0);
-  const [cylinderAngle, setCylinderAngle] = useState(0);
-  const [targetAngle, setTargetAngle] = useState(0);
-  const [isTensionOn, setIsTensionOn] = useState(false);
-  const [attempts, setAttempts] = useState(MAX_ATTEMPTS);
-  const [successProgress, setSuccessProgress] = useState(0);
+  const [phase, setPhase] = useState<Phase>("idle");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
 
-  const mouseAngleRef = useRef(0);
-  const isTensionRef = useRef(false);
-  const successTimerRef = useRef(0);
-  const brokenRef = useRef(false);
-  const targetAngleRef = useRef(0);
-
-  const playSound = (type: string) => {
-    const a = new Audio(`./sounds/${type}.mp3`);
-    a.volume = 0.4;
-    a.play().catch(() => {});
-  };
-
-  // 🎯 start game
-  const startGame = useCallback(() => {
-    const zone =
-      difficulty === "easy" ? 22 :
-      difficulty === "medium" ? 18 :
-      12;
-
-    (window as any).__ZONE__ = zone;
-
-    const target = Math.round((Math.random() - 0.5) * 60);
-    setTargetAngle(target);
-    targetAngleRef.current = target;
-
-    setPickAngle(0);
-    setCylinderAngle(0);
-    setAttempts(MAX_ATTEMPTS);
-    setSuccessProgress(0);
-
-    brokenRef.current = false;
-    successTimerRef.current = 0;
-
-    setGameState("playing");
-  }, [difficulty]);
-
-  const closeUI = () => {
-    setGameState("idle");
-    setIsTensionOn(false);
-    playSound("close");
-  };
-
-  // 🖱️ SOURIS ONLY (IMPORTANT FIX)
+  // NUI message listener
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const percent = e.clientX / window.innerWidth;
-
-      const angle = -45 + percent * 90;
-
-      const clamped = Math.max(-45, Math.min(45, angle));
-
-      mouseAngleRef.current = clamped;
-      setPickAngle(clamped);
+    const onMessage = (e: MessageEvent) => {
+      const data = e.data;
+      if (data.type === "openLockpick") {
+        setPhase("lockpick");
+        if (data.difficulty) setDifficulty(data.difficulty);
+      }
     };
-
-    window.addEventListener("mousemove", handleMouseMove);
-
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  // 🎮 GAME LOOP
-  useEffect(() => {
-    if (gameState !== "playing") return;
-
-    const tick = () => {
-      const zone = (window as any).__ZONE__ ?? 18;
-
-      const diff = Math.abs(mouseAngleRef.current - targetAngleRef.current);
-      const inZone = diff <= zone;
-
-      // 💥 tension
-      if (isTensionRef.current && !brokenRef.current) {
-        if (inZone) {
-          successTimerRef.current += 16;
-          setSuccessProgress((successTimerRef.current / SUCCESS_HOLD_TIME) * 100);
-
-          setCylinderAngle((p) => Math.min(p + CYLINDER_SPEED * 0.016, 90));
-
-          if (successTimerRef.current >= SUCCESS_HOLD_TIME) {
-            setGameState("success");
-            playSound("success");
-            return;
-          }
-        } else {
-          // 💥 casse
-          brokenRef.current = true;
-          playSound("crack");
-
-          const newAttempts = attempts - 1;
-          setAttempts(newAttempts);
-
-          setIsTensionOn(false);
-          isTensionRef.current = false;
-
-          if (newAttempts <= 0) {
-            setGameState("fail");
-            return;
-          }
-        }
-      }
-
-      requestAnimationFrame(tick);
-    };
-
-    const id = requestAnimationFrame(tick);
-
-    return () => cancelAnimationFrame(id);
-  }, [gameState, attempts]);
-
-  // 🎹 INPUT
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.code === "KeyE") {
-        setIsTensionOn(true);
-        isTensionRef.current = true;
-        playSound("tension");
-      }
-
-      if (e.code === "Escape") {
-        closeUI();
-      }
-    };
-
-    const up = (e: KeyboardEvent) => {
-      if (e.code === "KeyE") {
-        setIsTensionOn(false);
-        isTensionRef.current = false;
-      }
-    };
-
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-
-    return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-    };
+  const handleLockpickSuccess = useCallback(() => {
+    setPhase("hotwire");
   }, []);
 
-  if (gameState === "idle") {
+  const handleLockpickFail = useCallback(() => {
+    setPhase("idle");
+    fetch(`https://${resourceName}/fail`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  }, []);
+
+  const handleHotwireSuccess = useCallback(() => {
+    setPhase("complete");
+    setTimeout(() => {
+      setPhase("idle");
+      fetch(`https://${resourceName}/success`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+    }, 2200);
+  }, []);
+
+  const handleHotwireFail = useCallback(() => {
+    setPhase("idle");
+    fetch(`https://${resourceName}/fail`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setPhase("idle");
+    fetch(`https://${resourceName}/close`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  }, []);
+
+  // DEV: keyboard shortcut to open
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "F5" && phase === "idle") setPhase("lockpick");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [phase]);
+
+  if (phase === "idle") {
     return (
       <div className="dev-launcher">
-        <button onClick={startGame}>Start Lockpick</button>
+        <div className="dev-title">FiveM NUI — Dev Mode</div>
+        <button onClick={() => setPhase("lockpick")}>
+          Phase 1 — Crochetage
+        </button>
+        <button onClick={() => setPhase("hotwire")}>
+          Phase 2 — Démarrage moteur
+        </button>
+        <p>En jeu : commande <code>/lockpick</code> ou touche <code>F5</code></p>
+      </div>
+    );
+  }
+
+  if (phase === "complete") {
+    return (
+      <div className="result-overlay success-overlay">
+        <div className="result-icon">✓</div>
+        <div className="result-label">Moteur démarré</div>
       </div>
     );
   }
 
   return (
-    <div className="overlay">
-      <Lock
-        pickAngle={pickAngle}
-        cylinderAngle={cylinderAngle}
-        targetAngle={targetAngle}
-        isTensionOn={isTensionOn}
-        gameState={gameState}
-        successProgress={successProgress}
-      />
+    <div className="nui-root">
+      {phase === "lockpick" && (
+        <LockpickPhase
+          difficulty={difficulty}
+          onSuccess={handleLockpickSuccess}
+          onFail={handleLockpickFail}
+          onClose={handleClose}
+        />
+      )}
+      {phase === "hotwire" && (
+        <HotwirePhase
+          onSuccess={handleHotwireSuccess}
+          onFail={handleHotwireFail}
+          onClose={handleClose}
+        />
+      )}
     </div>
   );
 }
