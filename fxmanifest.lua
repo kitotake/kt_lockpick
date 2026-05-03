@@ -7,14 +7,14 @@
 fx_version 'cerulean'
 game 'gta5'
 
-name        'lockpick'
+name        'kt_lockpick'
 description 'Mini-jeu de crochetage NUI — Vite + React'
-version     '1.0.0'
-author      'TonPseudo'
+version     '1.0'
+author      'kitotake'
 
 -- Scripts client
 client_scripts {
-    'fivem_example/client.lua'
+    'client/client.lua'
 }
 
 -- Callbacks NUI autorisés
@@ -41,7 +41,7 @@ files {
 -- 3. Structure finale attendue :
 --    lockpick/
 --    ├── fxmanifest.lua
---    ├── fivem_example/client.lua
+--    ├── client/client.lua
 --    └── html/
 --        ├── index.html
 --        └── assets/
