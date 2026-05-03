@@ -1,0 +1,70 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.lock-wrapper {
+  position: relative;
+  width: 400px;
+  height: 400px;
+}
+
+.lock-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* 🔵 Base du lock (cylindre) */
+.lock-body-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 1;
+}
+
+/* 🔴 Zone centrale (où tout se superpose) */
+.lock-hole-area {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+
+/* 🟡 Pick (crochet)
+.pick-img-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 5;
+  transform-origin: center;
+}
+
+.pick-img {
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+} */
+
+/* 🟢 Wrench (outil de tension)
+.wrench-img-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 4;
+}
+
+.wrench-img-wrapper img {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+} */
