@@ -1,0 +1,329 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// LOCKPICK NUI — STYLES SCSS avec vraies images
+// Dimensions de référence des images sources :
+//   serrure.png  : 1380×752  (ratio ~1.835) → affichée à 340×185px
+//   cylinder.png : 677×369   (ratio ~1.835) → affichée à 120×65px
+//   tool.png     : 1408×768  (ratio ~1.833) → affichée à 90×49px (rotée 90°)
+//   lock.png     : 1408×768  (ratio ~1.833) → affichée à 110×60px
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── Variables ────────────────────────────────────────────────────────────────
+$c-bg:       #07070a;
+$c-overlay:  rgba(0,0,0,0.90);
+$c-success:  #2ecc71;
+$c-fail:     #e74c3c;
+$c-active:   #f39c12;
+$c-text:     #c8c8d4;
+$c-muted:    #4a4a5e;
+$c-metal:    #3e3e46;
+
+// Taille d'affichage de la serrure de base
+// Le trou de la serrure est approximativement centré à 50% X, 48% Y de l'image
+$lock-w:     340px;
+$lock-h:     185px;
+
+// ─── Reset ────────────────────────────────────────────────────────────────────
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+}
+
+// ─── Launcher DEV ─────────────────────────────────────────────────────────────
+.dev-launcher {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100vh; gap: 16px;
+  color: $c-text; background: $c-bg;
+
+  button {
+    padding: 12px 28px; background: $c-metal;
+    border: 1px solid lighten($c-metal, 10%); color: $c-text;
+    cursor: pointer; font-family: inherit; font-size: 13px;
+    letter-spacing: 0.08em; border-radius: 4px;
+    transition: background 0.2s;
+    &:hover { background: lighten($c-metal, 12%); }
+  }
+
+  p { font-size: 11px; color: $c-muted; text-align: center; line-height: 1.7; }
+  code { background: #111; padding: 2px 6px; color: $c-active; font-size: 10px; }
+}
+
+// ─── Overlay principal ─────────────────────────────────────────────────────────
+.overlay {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: $c-overlay;
+  gap: 20px;
+  backdrop-filter: blur(3px);
+  user-select: none;
+
+  &.shake { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both; }
+}
+
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  15%,55% { transform: translateX(-10px); }
+  35%,75% { transform: translateX(10px); }
+}
+
+// ─── Tentatives ───────────────────────────────────────────────────────────────
+.attempts-bar {
+  display: flex; gap: 10px;
+
+  .attempt-pip {
+    width: 30px; height: 5px; border-radius: 3px;
+    transition: background 0.3s, box-shadow 0.3s;
+    &.active  { background: $c-active; box-shadow: 0 0 8px rgba($c-active, 0.6); }
+    &.broken  { background: #1e1e26; }
+  }
+}
+
+// ─── Wrapper serrure ──────────────────────────────────────────────────────────
+.lock-wrapper {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+// ─── Anneau (shackle) ─────────────────────────────────────────────────────────
+.lock-shackle {
+  width: 60px; height: 52px;
+  border: 9px solid #1c1c22;
+  border-bottom: none;
+  border-radius: 30px 30px 0 0;
+  margin-bottom: -4px;
+  position: relative; z-index: 0;
+  transition: transform 0.55s cubic-bezier(0.34,1.56,0.64,1), border-color 0.3s;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 -2px 6px rgba(0,0,0,0.4);
+
+  &.open {
+    transform: rotate(-32deg) translateY(-14px);
+    border-color: $c-success;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.4), 0 0 12px rgba($c-success, 0.5);
+  }
+}
+
+// ─── Scène principale ─────────────────────────────────────────────────────────
+// Conteneur calé exactement sur l'image serrure.png
+.lock-scene {
+  position: relative;
+  width: $lock-w;
+  height: $lock-h;
+  z-index: 1;
+}
+
+// ─── Image serrure (fond fixe) ────────────────────────────────────────────────
+.lock-body-img {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  // Fond noir de l'image → screen efface le noir et garde le métal
+  mix-blend-mode: screen;
+  // Légère désaturation pour l'ambiance GTA RP
+  filter: brightness(0.85) saturate(0.7);
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
+// ─── Zone centrée sur le trou de la serrure ───────────────────────────────────
+// Le trou de la serrure (serrure.png) est visuellement centré à ~50% X, ~50% Y
+// On positionne l'ancre là, et les outils autour.
+.lock-hole-area {
+  position: absolute;
+  // Centré sur le trou de la serrure dans l'image
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0; height: 0;   // point d'ancrage pur
+  z-index: 10;
+}
+
+// ─── Indicateur de zone cible ─────────────────────────────────────────────────
+.target-zone {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  margin-left: -1px;
+  width: 2px; height: 38px;
+  background: linear-gradient(to top, transparent, rgba($c-active, 0.25));
+  transform-origin: center bottom;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+// ─── CYLINDRE (cylinder.png) ──────────────────────────────────────────────────
+// Affiché centré sur le trou, par-dessus la serrure.
+// Dimensions : 677×369 → ratio 1.835 → on affiche en 110×60px
+
+.cylinder-img-wrapper {
+  position: absolute;
+  // Centré sur l'ancre
+  top: 50%; left: 50%;
+  width: 110px; height: 60px;
+  margin-top: -30px; margin-left: -55px;
+  z-index: 5;
+
+  &.cyl-active  { filter: brightness(1.1) drop-shadow(0 0 6px rgba($c-success, 0.5)); }
+  &.cyl-success { filter: brightness(1.2) drop-shadow(0 0 10px rgba($c-success, 0.7)) sepia(0.3) hue-rotate(80deg); }
+  &.cyl-fail    { filter: brightness(0.9) drop-shadow(0 0 8px rgba($c-fail, 0.6)) sepia(0.5) hue-rotate(-20deg); }
+}
+
+.cylinder-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  mix-blend-mode: screen;
+  filter: brightness(0.9) saturate(0.6);
+  pointer-events: none;
+}
+
+// ─── TOURNEVIS fixe (tool.png) ────────────────────────────────────────────────
+// tool.png est vertical (tournevis pointé vers le bas).
+// On le place à droite du trou, légèrement incliné, FIXE.
+// Dimensions : 1408×768 → ratio ~1.83 → affiché en 36×66px (portrait)
+
+.wrench-img-wrapper {
+  position: absolute;
+  // Positionné à droite-bas du cylindre, comme un tournevis inséré
+  top: 50%; left: 50%;
+  width: 36px; height: 66px;
+  margin-top: -5px;   // légèrement sous le centre
+  margin-left: 20px;  // à droite du centre
+  z-index: 6;
+  // Le tournevis NE TOURNE JAMAIS
+  // Légère inclinaison fixe pour qu'il "entre" dans la serrure
+  transform: rotate(15deg);
+  transform-origin: center top;
+
+  &.wrench-active {
+    filter: brightness(1.3) drop-shadow(0 0 5px rgba($c-active, 0.6));
+  }
+}
+
+.wrench-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  mix-blend-mode: screen;
+  filter: brightness(0.8) saturate(0.5);
+  pointer-events: none;
+}
+
+// ─── LOCKPICK oscillant (lock.png) ────────────────────────────────────────────
+// lock.png est une tige horizontale avec crochet à droite.
+// On la place verticalement (rotate -90deg de base) pour qu'elle entre
+// dans la serrure par le bas, et oscille autour de son point d'insertion.
+// Dimensions : 1408×768 → ratio ~1.83 → affiché en 80×44px puis rotaté
+
+.pick-img-wrapper {
+  position: absolute;
+  // Ancré au centre du trou, pivot en bas = point d'insertion
+  bottom: 0; left: 50%;
+  width: 18px; height: 70px;
+  margin-left: -9px;
+  // transform-origin BAS = pivot au point d'entrée dans la serrure
+  transform-origin: center bottom;
+  z-index: 7;
+
+  // États colorés via filter
+  &.pick-neutral { filter: brightness(1.0); }
+  &.pick-zone    { filter: brightness(1.1) drop-shadow(0 0 4px rgba(cyan, 0.4)); }
+  &.pick-success { filter: brightness(1.2) drop-shadow(0 0 8px rgba($c-success, 0.7)) sepia(0.4) hue-rotate(80deg); }
+  &.pick-fail    { filter: brightness(1.0) drop-shadow(0 0 8px rgba($c-fail, 0.7)) sepia(0.5) hue-rotate(-20deg); }
+}
+
+.pick-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  // lock.png est horizontal → on le tourne pour qu'il soit vertical
+  transform: rotate(-90deg);
+  transform-origin: center center;
+  mix-blend-mode: screen;
+  filter: brightness(0.9) saturate(0.5);
+  pointer-events: none;
+}
+
+// ─── Halos de résultat ────────────────────────────────────────────────────────
+.lock-glow {
+  position: absolute; inset: -16px;
+  border-radius: 16px;
+  pointer-events: none;
+  animation: glowPulse 0.7s ease-in-out infinite alternate;
+  z-index: 20;
+
+  &.success-glow { box-shadow: 0 0 50px 12px rgba($c-success, 0.3); }
+  &.fail-glow    { box-shadow: 0 0 50px 12px rgba($c-fail,    0.3); }
+}
+
+@keyframes glowPulse {
+  from { opacity: 0.6; } to { opacity: 1; }
+}
+
+// ─── Barre de progression ─────────────────────────────────────────────────────
+.success-bar-wrapper {
+  width: $lock-w; height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px; overflow: hidden;
+}
+
+.success-bar-fill {
+  height: 100%;
+  background: linear-gradient(to right, $c-success, #a8ffcc);
+  border-radius: 2px;
+  transition: width 0.05s linear;
+  box-shadow: 0 0 8px rgba($c-success, 0.6);
+}
+
+// ─── Instructions ─────────────────────────────────────────────────────────────
+.instructions {
+  font-size: 11px; color: $c-muted;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+
+  kbd {
+    background: #1a1a22; border: 1px solid #2a2a36;
+    border-bottom: 2px solid #111;
+    padding: 2px 10px; border-radius: 4px;
+    font-family: inherit; font-size: 11px; color: $c-text;
+  }
+}
+
+.result-text {
+  font-size: 15px; font-weight: bold;
+  letter-spacing: 0.14em;
+  animation: fadeUp 0.3s ease both;
+}
+.success-text { color: $c-success; text-shadow: 0 0 14px rgba($c-success, 0.6); }
+.fail-text    { color: $c-fail;    text-shadow: 0 0 14px rgba($c-fail,    0.6); }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// ─── Boutons résultat ─────────────────────────────────────────────────────────
+.result-actions {
+  display: flex; gap: 12px;
+  animation: fadeUp 0.4s ease 0.1s both;
+
+  button {
+    padding: 8px 22px; border-radius: 4px;
+    border: 1px solid $c-metal;
+    font-family: inherit; font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .btn-retry {
+    background: $c-metal; color: $c-text;
+    &:hover { background: lighten($c-metal, 10%); border-color: $c-active; color: $c-active; }
+  }
+
+  .btn-close {
+    background: transparent; color: $c-muted;
+    &:hover { background: rgba($c-fail, 0.1); border-color: $c-fail; color: $c-fail; }
+  }
+}
