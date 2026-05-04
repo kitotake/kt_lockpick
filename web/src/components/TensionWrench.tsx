@@ -1,4 +1,4 @@
-// FIX: Math.sin(Date.now()) figé au render. Vibration déplacée dans un RAF.
+// FIX v1.1: vibration animée via RAF dédié (Math.sin au render était figé).
 
 import { useEffect, useRef, useState } from "react";
 import toolImg from "../assets/tool.png";
@@ -11,7 +11,6 @@ export default function TensionWrench({ isActive }: TensionWrenchProps) {
   const [vibration, setVibration] = useState(0);
   const rafRef = useRef(0);
 
-  // FIX: vibration animée via RAF dédié
   useEffect(() => {
     if (!isActive) {
       setVibration(0);

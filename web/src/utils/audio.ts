@@ -112,32 +112,34 @@ export function playSound(type: string) {
       noise(0.06, 0.1, 800);
       break;
 
-    case "engine_start":
-      if (!ctx) return;
+    case "engine_start": {
+      // FIX: bloc isolé avec accolades pour éviter l'ambiguïté du switch/case
+      // avec des déclarations const. Le `return` interne était la seule garde
+      // contre le fall-through ; on rend cela explicite.
+      if (!ctx) break;
       resume();
-      {
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc1.connect(gain);
-        osc2.connect(gain);
-        gain.connect(ctx.destination);
-        osc1.type = "sawtooth";
-        osc2.type = "square";
-        osc1.frequency.setValueAtTime(50, ctx.currentTime);
-        osc1.frequency.linearRampToValueAtTime(120, ctx.currentTime + 1.5);
-        osc2.frequency.setValueAtTime(45, ctx.currentTime);
-        osc2.frequency.linearRampToValueAtTime(110, ctx.currentTime + 1.5);
-        gain.gain.setValueAtTime(0.01, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.4);
-        gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 1.5);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2);
-        osc1.start();
-        osc2.start();
-        osc1.stop(ctx.currentTime + 2);
-        osc2.stop(ctx.currentTime + 2);
-      }
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+      osc1.type = "sawtooth";
+      osc2.type = "square";
+      osc1.frequency.setValueAtTime(50, ctx.currentTime);
+      osc1.frequency.linearRampToValueAtTime(120, ctx.currentTime + 1.5);
+      osc2.frequency.setValueAtTime(45, ctx.currentTime);
+      osc2.frequency.linearRampToValueAtTime(110, ctx.currentTime + 1.5);
+      gain.gain.setValueAtTime(0.01, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.4);
+      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 1.5);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2);
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 2);
+      osc2.stop(ctx.currentTime + 2);
       break;
+    }
 
     default:
       break;

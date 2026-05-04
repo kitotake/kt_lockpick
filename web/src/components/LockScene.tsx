@@ -1,9 +1,7 @@
-// FIXES:
-// 1. Les deux drop zones avaient exactement la même condition → la deuxième
-//    écrasait la première de manière silencieuse. Maintenant une seule condition
-//    garde globale et chaque zone est distinctement rendue.
-// 2. Suppression du commentaire //hint={hint} (prop inexistante → warning TS)
-// 3. Type strict pour tous les props
+// FIXES v1.2:
+// 1. Prop `targetAngle` supprimée — elle était déclarée mais jamais utilisée
+//    dans le corps du composant (valeur orpheline qui induisait en erreur).
+// 2. Condition drop zones factorisée (doublon corrigé en v1.1, conservé).
 
 import type { Tool, WrenchPos, ToolPlaced } from "./LockpickPhase";
 import cylinderImg from "../assets/cylinder.png";
@@ -14,7 +12,6 @@ import Rotor from "./Rotor";
 interface Props {
   pickAngle: number;
   cylinderAngle: number;
-  targetAngle: number;
   isTensioning: boolean;
   placed: ToolPlaced;
   pickBroken: boolean;
@@ -37,8 +34,6 @@ export default function LockScene({
   onPlaceWrench,
   onPlacePick,
 }: Props) {
-  // FIX: La condition d'affichage des drop zones était dupliquée avec exactement
-  // les mêmes termes, rendant la seconde zone inaccessible. Condition factorisée.
   const showDropZones = !placed.wrench && selectedTool === "wrench";
 
   return (
@@ -46,7 +41,7 @@ export default function LockScene({
       <div className="lock-body">
         <img src={cylinderImg} className="lock-body-img" alt="Corps de serrure" />
 
-        {/* Zone de placement tournevis */}
+        {/* Zones de placement tournevis */}
         {showDropZones && (
           <div className="drop-zone drop-top" onClick={() => onPlaceWrench("top")}>
             <span>↑ HAUT</span>

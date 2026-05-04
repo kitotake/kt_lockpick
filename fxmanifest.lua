@@ -7,7 +7,7 @@ game 'gta5'
 
 name        'kt_lockpick'
 description 'Mini-jeu de crochetage NUI — Vite + React'
-version     '1.1.0'
+version     '1.2.0'
 author      'kitotake'
 
 -- Scripts client
@@ -16,7 +16,6 @@ client_scripts {
 }
 
 -- Callbacks NUI autorisés
--- FIX: nui_callbacks était manquant → les fetch NUI étaient silencieusement ignorés
 nui_callbacks {
     'success',
     'fail',

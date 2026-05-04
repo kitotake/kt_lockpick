@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import LockpickPhase from "./components/LockpickPhase";
 import HotwirePhase from "./components/HotwirePhase";
 import "./styles.scss";
@@ -8,7 +8,7 @@ export type Difficulty = "easy" | "medium" | "hard";
 
 const VALID_DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 
-// FIX: GetParentResourceName est une fonction globale FiveM injectée dans le NUI
+// GetParentResourceName est une fonction globale FiveM injectée dans le NUI
 const resourceName =
   (window as unknown as { GetParentResourceName?: () => string }).GetParentResourceName?.() ??
   "kt_lockpick";
@@ -21,12 +21,14 @@ function App() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
+  // Nettoyage du timeout de fin de phase "complete"
+  const completeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // NUI message listener
   useEffect(() => {
     const onMessage = (e: MessageEvent<{ type?: string; difficulty?: unknown }>) => {
       const data = e.data;
       if (data.type === "openLockpick") {
-        // FIX: valider difficulty avant de l'accepter
         if (isValidDifficulty(data.difficulty)) {
           setDifficulty(data.difficulty);
         }
@@ -35,6 +37,15 @@ function App() {
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  // Nettoyage du timer si le composant se démonte en phase "complete"
+  useEffect(() => {
+    return () => {
+      if (completeTimerRef.current !== null) {
+        clearTimeout(completeTimerRef.current);
+      }
+    };
   }, []);
 
   const sendNUI = useCallback((event: string) => {
@@ -58,7 +69,8 @@ function App() {
 
   const handleHotwireSuccess = useCallback(() => {
     setPhase("complete");
-    setTimeout(() => {
+    completeTimerRef.current = setTimeout(() => {
+      completeTimerRef.current = null;
       setPhase("idle");
       sendNUI("success");
     }, 2200);
@@ -74,42 +86,9 @@ function App() {
     sendNUI("close");
   }, [sendNUI]);
 
-  // DEV: touche F5 pour ouvrir rapidement
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === "F5" && phase === "idle") {
-        e.preventDefault();
-        setPhase("lockpick");
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [phase]);
-
   if (phase === "idle") {
-    return (
-      <div className="dev-launcher">
-        <div className="dev-title">FiveM NUI — Dev Mode</div>
-        <button onClick={() => setPhase("lockpick")}>
-          Phase 1 — Crochetage
-        </button>
-        <button onClick={() => setPhase("hotwire")}>
-          Phase 2 — Démarrage moteur
-        </button>
-        <div className="dev-difficulty">
-          {VALID_DIFFICULTIES.map((d) => (
-            <button
-              key={d}
-              className={difficulty === d ? "diff-active" : ""}
-              onClick={() => setDifficulty(d)}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-        <p>En jeu : commande <code>/lockpick</code> ou touche <code>F5</code></p>
-      </div>
-    );
+    // En jeu le NUI est caché (transparent) quand idle — rien à afficher
+    return null;
   }
 
   if (phase === "complete") {

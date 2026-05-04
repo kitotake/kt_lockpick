@@ -31,6 +31,9 @@ kt_lockpick/
             └── audio.ts
 ```
 
+> **Note** : `Lock.tsx` et `Cylinder.tsx` ont été supprimés (composants morts,
+> jamais importés, avec des `any` non typés).
+
 ## Build
 
 ```bash
@@ -40,12 +43,9 @@ npm run build
 # → génère web/dist/
 ```
 
-Copier le contenu de `web/dist/` dans `web/dist/` de ta ressource FiveM.
-
 ## Utilisation en jeu
 
 ```lua
--- Ouvrir le mini-jeu depuis un script client
 SendNUIMessage({
   type = "openLockpick",
   difficulty = "medium"   -- "easy" | "medium" | "hard"
@@ -63,17 +63,13 @@ SetNuiFocus(true, true)
 |--------|--------|
 | Appliquer la tension | `E` (maintenu) |
 | Fermer | `Escape` |
-| Dev : ouvrir | `F5` |
 
-## Corrections apportées (v1.1)
+## Corrections apportées (v1.2)
 
-1. **fxmanifest.lua** — Ajout de `nui_callbacks` (manquant → callbacks NUI silencieusement ignorés)
-2. **Rotor / Pick / TensionWrench** — Vibrations déplacées dans des RAF dédiés (étaient figées au render React)
-3. **LockpickPhase** — `cylinderAngle` retiré des dépendances du game-loop RAF (causait une boucle infinie de re-subscriptions)
-4. **LockpickPhase** — Ajout de refs miroirs (`picksLeftRef`, `gameOverRef`, `cylinderAngleRef`) pour éviter les stale closures
-5. **HotwirePhase** — `wiresRef` pour lire l'état courant des fils dans le useEffect drag (stale closure critique)
-6. **HotwirePhase** — `errorsLeftRef` / `gameOverRef` pour la logique d'erreurs en RAF
-7. **LockScene** — Drop zones tournevis : condition dupliquée corrigée (la 2e zone était inaccessible)
-8. **App.tsx** — Validation de `difficulty` reçue du NUI (évite un état invalide)
-9. **styles.scss** — Chevauchement toolbox/panel corrigé (`padding-right: 160px` sur `.nui-root`)
-10. **Types** — Suppression de tous les `any`, interfaces strictes partout
+1. **Dev mode supprimé** — `App.tsx` ne rend plus `null` en phase `idle` (transparent pour FiveM) ; boutons de test, touche `F5`, écran "FiveM NUI — Dev Mode" retirés ; `.dev-launcher` supprimé du SCSS.
+2. **Composants morts supprimés** — `Lock.tsx` et `Cylinder.tsx` n'étaient jamais importés et contenaient des `any`. Supprimés pour éviter toute confusion.
+3. **Prop orpheline** — `targetAngle` déclarée dans les props de `LockScene` mais jamais utilisée dans son corps → retirée de l'interface et de l'appel.
+4. **Fuites mémoire / setState après démontage** — `mountedRef` ajouté dans `LockpickPhase` et `HotwirePhase` ; tous les `setTimeout` sont désormais stockés dans des refs et nettoyés dans les `useEffect` de cleanup. Idem pour le timer de phase "complete" dans `App`.
+5. **Répétition keydown sur `E`** — Guard `e.repeat` ajouté dans `LockpickPhase` → `playSound("tension_loop")` n'est plus appelé ~30 fois/s quand la touche est maintenue.
+6. **`null-check` displaced.connectedSlot** — Dans `HotwirePhase`, la comparaison `s.id === displaced.connectedSlot` est maintenant précédée d'un `displaced.connectedSlot !== null` explicite.
+7. **`engine_start` dans le switch** — Le `case` utilise maintenant un bloc `{}` isolé avec un `break` explicite au lieu de compter sur un `return` interne, éliminant l'anti-pattern de fall-through implicite.

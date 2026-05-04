@@ -1,6 +1,4 @@
-// FIX: La vibration utilisait Math.sin(Date.now()) au moment du render React,
-// ce qui la gelait entre deux renders. Elle est maintenant pilotée par un RAF
-// interne qui force un re-render uniquement quand nécessaire.
+// FIX v1.1: vibration animée via RAF dédié (Math.sin au render était figé).
 
 import { useEffect, useRef, useState } from "react";
 import rotorImg from "../assets/rotor.png";
@@ -15,7 +13,6 @@ export default function Rotor({ angle, gameState, inZone }: RotorProps) {
   const [shakeOffset, setShakeOffset] = useState(0);
   const rafRef = useRef(0);
 
-  // FIX: animation de vibration propre dans un RAF dédié
   useEffect(() => {
     const shouldShake = gameState === "playing" && !inZone && angle > 2;
 
@@ -38,9 +35,10 @@ export default function Rotor({ angle, gameState, inZone }: RotorProps) {
   else if (gameState === "fail") filterClass = "cyl-fail";
   else if (inZone) filterClass = "cyl-active";
 
-  const visualAngle = gameState === "playing" && !inZone && angle > 2
-    ? 2 + shakeOffset
-    : angle;
+  const visualAngle =
+    gameState === "playing" && !inZone && angle > 2
+      ? 2 + shakeOffset
+      : angle;
 
   return (
     <div

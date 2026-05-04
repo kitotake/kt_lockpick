@@ -1,8 +1,11 @@
-// FIXES:
-// 1. cylinderAngle retiré des dépendances du game-loop RAF → plus de re-subscription constante
-// 2. picksLeft, gameOver lus via useRef pour éviter les stale closures dans le RAF
-// 3. successTimerRef et cylinderAngleRef utilisés pour les mutations in-loop
-// 4. Drop zones tournevis : condition simplifiée (plus de doublon)
+// FIXES v1.2:
+// 1. mountedRef : tous les setTimeout sont gardés → plus d'appels setState sur
+//    composant démonté (fuite mémoire / warning React).
+// 2. e.repeat guard sur KeyE keydown → plus d'accumulation sonore quand la
+//    touche est maintenue (keydown se répète à ~30 fps).
+// 3. targetAngle retiré des props passées à LockScene (prop jamais utilisée).
+// 4. Nettoyage du setTimeout "pickBroken" si le composant se démonte pendant
+//    l'animation de casse.
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import ToolBox from "./ToolBox";
@@ -44,15 +47,30 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
   const [shaking, setShaking] = useState(false);
   const [hint, setHint] = useState<"none" | "warm" | "hot">("none");
 
-  // FIX: refs pour les valeurs mutées dans la game loop (évite stale closures)
+  // Refs pour les valeurs mutées dans la game loop (évite stale closures)
   const pickAngleRef = useRef(0);
   const isTensionRef = useRef(false);
   const successTimerRef = useRef(0);
-  const cylinderAngleRef = useRef(0);   // FIX: ref miroir pour cylinderAngle
+  const cylinderAngleRef = useRef(0);
   const brokenRef = useRef(false);
-  const gameOverRef = useRef(false);     // FIX: ref miroir pour gameOver
-  const picksLeftRef = useRef(MAX_PICKS); // FIX: ref miroir pour picksLeft
+  const gameOverRef = useRef(false);
+  const picksLeftRef = useRef(MAX_PICKS);
   const rafRef = useRef(0);
+
+  // FIX: guard pour éviter setState sur composant démonté
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // FIX: ref pour le setTimeout de casse du pick (nettoyage au démontage)
+  const breakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (breakTimerRef.current !== null) clearTimeout(breakTimerRef.current);
+    };
+  }, []);
 
   const zone = ZONE_SIZES[difficulty];
 
@@ -87,7 +105,10 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
         onClose();
         return;
       }
-      if (e.code === "KeyE" && placed.pick && placed.wrench && !brokenRef.current) {
+      // FIX: e.repeat guard — le navigateur génère des keydown répétés en
+      // continu quand la touche est maintenue. Sans ce guard, playSound
+      // s'accumule à ~30 appels/s et isTensionRef se reset inutilement.
+      if (e.code === "KeyE" && !e.repeat && placed.pick && placed.wrench && !brokenRef.current) {
         if (!isTensionRef.current) {
           isTensionRef.current = true;
           setIsTensioning(true);
@@ -99,7 +120,6 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
       if (e.code === "KeyE") {
         isTensionRef.current = false;
         setIsTensioning(false);
-        // Relâché hors succès → reset la progression
         if (!brokenRef.current && successTimerRef.current < SUCCESS_HOLD) {
           successTimerRef.current = 0;
           cylinderAngleRef.current = 0;
@@ -117,9 +137,6 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
   }, [placed, onClose]);
 
   // ── Game loop ─────────────────────────────────────────────────
-  // FIX: cylinderAngle RETIRÉ des dépendances → le RAF ne se re-subscribait
-  // à chaque frame, provoquant une boucle de création/destruction infinie.
-  // On lit/écrit via cylinderAngleRef à l'intérieur du RAF.
   useEffect(() => {
     if (!placed.pick || !placed.wrench || gameOverRef.current) return;
 
@@ -164,7 +181,11 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
           setShaking(true);
           playSound("crack");
 
-          setTimeout(() => {
+          // FIX: on stocke le timer pour pouvoir le nettoyer
+          breakTimerRef.current = setTimeout(() => {
+            breakTimerRef.current = null;
+            if (!mountedRef.current) return;
+
             const newLeft = picksLeftRef.current - 1;
             picksLeftRef.current = newLeft;
             setPicksLeft(newLeft);
@@ -203,7 +224,6 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-    // FIX: cylinderAngle intentionnellement absent des dépendances (lu via ref)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placed.pick, placed.wrench, targetAngle, zone, onSuccess, onFail]);
 
@@ -251,7 +271,6 @@ export default function LockpickPhase({ difficulty, onSuccess, onFail, onClose }
         <LockScene
           pickAngle={pickAngle}
           cylinderAngle={cylinderAngle}
-          targetAngle={targetAngle}
           isTensioning={isTensioning}
           placed={placed}
           pickBroken={pickBroken}

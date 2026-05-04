@@ -1,5 +1,4 @@
-// FIX: Math.sin(Date.now()) calculé au render React → valeur toujours identique
-// entre deux renders. Vibration déplacée dans un RAF interne.
+// FIX v1.1: vibration déplacée dans un RAF dédié (Math.sin au render était figé).
 
 import { useEffect, useRef, useState } from "react";
 import lockImg from "../assets/lock.png";
@@ -18,7 +17,6 @@ export default function Pick({ angle, inZone, isTensionOn, gameState }: PickProp
   const broken = gameState === "fail";
   const shouldStress = isTensionOn && !inZone && !broken;
 
-  // FIX: stress vibration via RAF dédié
   useEffect(() => {
     if (!shouldStress) {
       setStressOffset(0);

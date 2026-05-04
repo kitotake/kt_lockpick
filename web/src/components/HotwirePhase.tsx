@@ -1,10 +1,10 @@
-// FIXES:
-// 1. `wires` était lu dans la closure du useEffect drag sans être en dépendance
-//    → stale closure : le drop lisait toujours l'état initial des fils.
-//    Solution : lecture via wiresRef (ref miroir synchronisé).
-// 2. `setSlots` dans le useEffect appelait une closure sur `wires` stale,
-//    causant des incohérences après plusieurs connexions.
-// 3. Types stricts — suppression des `any`.
+// FIXES v1.2:
+// 1. mountedRef : le setTimeout dans onUp (mouseup) ne peut plus appeler
+//    setState sur un composant démonté.
+// 2. displaced.connectedSlot : null-check explicite avant comparaison dans
+//    setSlots pour clarifier l'intention (null === number est toujours faux
+//    mais le type était ambigu).
+// 3. Types stricts conservés — plus de `any`.
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { playSound } from "../utils/audio";
@@ -69,7 +69,7 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [shakeSlot, setShakeSlot] = useState<number | null>(null);
 
-  // FIX: ref miroir pour wires — évite la stale closure dans le useEffect drag
+  // Ref miroir pour wires — évite la stale closure dans le useEffect drag
   const wiresRef = useRef<Wire[]>(wires);
   useEffect(() => {
     wiresRef.current = wires;
@@ -85,11 +85,29 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
     gameOverRef.current = gameOver;
   }, [gameOver]);
 
+  // FIX: guard monté pour éviter setState après démontage
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // FIX: ref pour le timer de shake (nettoyage)
+  const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // FIX: ref pour le timer de succès (nettoyage)
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (shakeTimerRef.current !== null) clearTimeout(shakeTimerRef.current);
+      if (successTimerRef.current !== null) clearTimeout(successTimerRef.current);
+    };
+  }, []);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const wireRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const slotRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // FIX: checkWin lit wiresRef (pas la closure stale)
   const checkWin = useCallback((updatedWires: Wire[]) => {
     return updatedWires.every((w) => w.connectedSlot === w.correctSlot);
   }, []);
@@ -132,7 +150,7 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
     const onMove = (e: MouseEvent) => setDragPos({ x: e.clientX, y: e.clientY });
 
     const onUp = (e: MouseEvent) => {
-      // FIX: lire via wiresRef pour avoir l'état courant, pas la closure initiale
+      // Lire via wiresRef pour avoir l'état courant (évite stale closure)
       const currentWires = wiresRef.current;
 
       let hitSlot: number | null = null;
@@ -157,10 +175,9 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
         }
 
         const isCorrect = wire.correctSlot === hitSlot;
-        const targetSlot = hitSlot; // capture pour les closures
+        const targetSlot = hitSlot;
 
         setWires((prev) => {
-          // Déplacer le fil qui occupait déjà ce slot
           const displaced = prev.find(
             (w) => w.connectedSlot === targetSlot && w.id !== dragWire
           );
@@ -171,12 +188,11 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
             return w;
           });
 
-          // FIX: setSlots à l'intérieur du setWires callback pour avoir
-          // l'état des slots cohérent avec les fils qu'on vient de mettre à jour
           setSlots((prevSlots) =>
             prevSlots.map((s) => {
               if (s.id === targetSlot) return { ...s, lit: true, correct: isCorrect };
-              if (displaced && s.id === displaced.connectedSlot) {
+              // FIX: null-check explicite — displaced.connectedSlot peut être null
+              if (displaced && displaced.connectedSlot !== null && s.id === displaced.connectedSlot) {
                 return { ...s, lit: false, correct: false };
               }
               return s;
@@ -192,21 +208,30 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
               gameOverRef.current = true;
               setGameOver(true);
               playSound("fail");
-              setTimeout(() => onFail(), 600);
+              successTimerRef.current = setTimeout(() => {
+                successTimerRef.current = null;
+                if (mountedRef.current) onFail();
+              }, 600);
             }
 
             setShakeSlot(targetSlot);
             playSound("error");
-            setTimeout(() => setShakeSlot(null), 500);
+            shakeTimerRef.current = setTimeout(() => {
+              shakeTimerRef.current = null;
+              if (mountedRef.current) setShakeSlot(null);
+            }, 500);
           } else {
             playSound("wire_connect");
             if (checkWin(updated)) {
               setSuccess(true);
               gameOverRef.current = true;
               setGameOver(true);
-              setTimeout(() => {
-                playSound("engine_start");
-                onSuccess();
+              successTimerRef.current = setTimeout(() => {
+                successTimerRef.current = null;
+                if (mountedRef.current) {
+                  playSound("engine_start");
+                  onSuccess();
+                }
               }, 800);
             }
           }
@@ -243,7 +268,7 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Calcul position départ fil
+  // Calcul positions fils
   const getWireStart = (wireId: number) => {
     const el = wireRefs.current[wireId];
     if (!el) return { x: 0, y: 0 };
@@ -322,9 +347,7 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
           {wires.map((wire) => (
             <div key={wire.id} className="wire-row">
               <div
-                ref={(el) => {
-                  wireRefs.current[wire.id] = el;
-                }}
+                ref={(el) => { wireRefs.current[wire.id] = el; }}
                 className={`wire-connector ${wire.connectedSlot !== null ? "wire-connected" : ""}`}
                 style={{ "--wire-color": wire.color } as React.CSSProperties}
                 onMouseDown={(e) => handleWireMouseDown(e, wire.id)}
@@ -368,9 +391,7 @@ export default function HotwirePhase({ onSuccess, onFail, onClose }: Props) {
           {slots.map((slot) => (
             <div key={slot.id} className="slot-row">
               <div
-                ref={(el) => {
-                  slotRefs.current[slot.id] = el;
-                }}
+                ref={(el) => { slotRefs.current[slot.id] = el; }}
                 className={`slot-connector ${
                   slot.lit ? (slot.correct ? "slot-correct" : "slot-wrong") : ""
                 } ${shakeSlot === slot.id ? "slot-shake" : ""}`}
