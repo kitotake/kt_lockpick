@@ -2,7 +2,7 @@
 -- kt_lockpick / server/main.lua
 -- ══════════════════════════════════════════════════════════════
 
--- ─── Helpers inventaire (fork ox_inventory) ───────────────────
+-- ─── Helpers inventaire (fork kt_inventory) ───────────────────
 
 local function HasItem(src, item, qty)
     qty = qty or 1
